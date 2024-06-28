@@ -5,6 +5,7 @@ using Docfx.Plugins;
 
 namespace Docfx.Build.Engine;
 
+[System.Diagnostics.DebuggerDisplay("PostProcessor {ContractName}")]
 sealed class PostProcessor
 {
     public string ContractName { get; set; }

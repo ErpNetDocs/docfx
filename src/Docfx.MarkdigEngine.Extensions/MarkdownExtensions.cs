@@ -28,6 +28,7 @@ public static class MarkdownExtensions
             .UseEmphasisExtras(EmphasisExtraOptions.Strikethrough)
             .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)
             .UseMediaLinks()
+            .UseGridTables()
             .UsePipeTables()
             .UseAutoLinks()
             .UseHeadingIdRewriter()

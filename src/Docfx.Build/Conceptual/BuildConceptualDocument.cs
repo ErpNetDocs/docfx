@@ -15,6 +15,7 @@ namespace Docfx.Build.ConceptualDocuments;
 [Export(nameof(ConceptualDocumentProcessor), typeof(IDocumentBuildStep))]
 class BuildConceptualDocument : BaseDocumentBuildStep
 {
+    internal const string ConceptualKey = Constants.PropertyName.Conceptual;
     private const string DocumentTypeKey = "documentType";
 
     public override string Name => nameof(BuildConceptualDocument);
@@ -37,7 +38,7 @@ class BuildConceptualDocument : BaseDocumentBuildStep
         {
             model.ManifestProperties.rawTitle = h1Raw;
         }
-        content[Constants.PropertyName.Conceptual] = conceptual;
+        content[ConceptualKey] = conceptual;
 
         if (result.YamlHeader?.Count > 0)
         {
