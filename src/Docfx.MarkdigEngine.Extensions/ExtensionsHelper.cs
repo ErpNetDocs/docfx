@@ -89,6 +89,34 @@ public static partial class ExtensionsHelper
         return index == startString.Length;
     }
 
+    public static bool MatchIdentifier(ref StringSlice slice, out string identifier)
+    {
+        identifier = null;
+        var str = StringBuilderCache.Local();
+
+        str.Append(slice.CurrentChar);
+
+        var c = slice.NextChar();
+        while (c.IsAlphaNumeric())
+        {
+            str.Append(c);
+            c = slice.NextChar();
+        }
+
+        if (str.Length == 0)
+        {
+            return false;
+        }
+
+        identifier = str.ToString();
+        if (string.IsNullOrWhiteSpace(identifier))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     public static void ResetLineIndent(BlockProcessor processor)
     {
         processor.GoToColumn(processor.ColumnBeforeIndent);
