@@ -24,3 +24,4 @@ launchSettings.json
 *.nuget.targets
 *.code-workspace
 *.binlog
+/package-lock.json
