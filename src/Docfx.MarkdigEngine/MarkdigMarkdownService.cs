@@ -8,6 +8,7 @@ using Docfx.Plugins;
 using Markdig;
 using Markdig.Renderers;
 using Markdig.Syntax;
+using CollectionExtensions = System.Collections.Generic.CollectionExtensions;
 
 namespace Docfx.MarkdigEngine;
 
@@ -17,16 +18,19 @@ public class MarkdigMarkdownService : IMarkdownService
 
     private readonly MarkdownServiceParameters _parameters;
     private readonly MarkdownContext _context;
-    private readonly Func<MarkdownPipelineBuilder, MarkdownPipelineBuilder> _configureMarkdig;
+
+    private readonly MarkdownPipeline markdownPipeline1; // isInline:true,  multipleYamlHeader:true
+    private readonly MarkdownPipeline markdownPipeline2; // isInline:true,  multipleYamlHeader:false
+    private readonly MarkdownPipeline markdownPipeline3; // isInline:false, multipleYamlHeader:true
+    private readonly MarkdownPipeline markdownPipeline4; // isInline:false, multipleYamlHeader:false
 
     public MarkdigMarkdownService(
         MarkdownServiceParameters parameters,
         Func<MarkdownPipelineBuilder, MarkdownPipelineBuilder> configureMarkdig = null)
     {
         _parameters = parameters;
-        _configureMarkdig = configureMarkdig;
         _context = new MarkdownContext(
-            key => _parameters.Tokens.TryGetValue(key, out var value) ? value : null,
+            key => CollectionExtensions.GetValueOrDefault(_parameters.Tokens, key),
             (code, message, origin, line) => Logger.LogInfo(message, null, InclusionContext.File.ToString(), line?.ToString(), code),
             (code, message, origin, line) => Logger.LogSuggestion(message, null, InclusionContext.File.ToString(), line?.ToString(), code),
             (code, message, origin, line) => Logger.LogWarning(message, null, InclusionContext.File.ToString(), line?.ToString(), code),
@@ -34,6 +38,11 @@ public class MarkdigMarkdownService : IMarkdownService
             ReadFile,
             GetLink,
             GetImageLink);
+
+        markdownPipeline1 = CreateMarkdownPipeline(configureMarkdig, true, true);
+        markdownPipeline2 = CreateMarkdownPipeline(configureMarkdig, true, false);
+        markdownPipeline3 = CreateMarkdownPipeline(configureMarkdig, false, true);
+        markdownPipeline4 = CreateMarkdownPipeline(configureMarkdig, false, false);
     }
 
     public MarkupResult Markup(string content, string filePath)
@@ -44,15 +53,9 @@ public class MarkdigMarkdownService : IMarkdownService
     public MarkupResult Markup(string content, string filePath, bool multipleYamlHeader)
     {
         ArgumentNullException.ThrowIfNull(content);
-
-#if NET7_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(filePath);
-#else
-        if(string.IsNullOrEmpty(filePath))
-            throw new ArgumentNullException(nameof(filePath));
-#endif
 
-        var pipeline = CreateMarkdownPipeline(isInline: false, multipleYamlHeader);
+        var pipeline = GetOrCreateMarkdownPipeline(isInline: false, multipleYamlHeader);
 
         using (InclusionContext.PushFile((RelativePath)filePath))
         {
@@ -78,7 +81,7 @@ public class MarkdigMarkdownService : IMarkdownService
             throw new ArgumentException("file path can't be null or empty.");
         }
 
-        var pipeline = CreateMarkdownPipeline(isInline);
+        var pipeline = GetOrCreateMarkdownPipeline(isInline);
 
         using (InclusionContext.PushFile((RelativePath)filePath))
         {
@@ -103,7 +106,7 @@ public class MarkdigMarkdownService : IMarkdownService
             throw new ArgumentNullException(nameof(document), "file path can't be found in AST.");
         }
 
-        var pipeline = CreateMarkdownPipeline(isInline);
+        var pipeline = GetOrCreateMarkdownPipeline(isInline);
 
         using (InclusionContext.PushFile((RelativePath)filePath))
         {
@@ -121,7 +124,18 @@ public class MarkdigMarkdownService : IMarkdownService
         }
     }
 
-    private MarkdownPipeline CreateMarkdownPipeline(bool isInline, bool multipleYamlHeader = false)
+    private MarkdownPipeline GetOrCreateMarkdownPipeline(bool isInline, bool multipleYamlHeader = false)
+    {
+        return isInline
+            ? multipleYamlHeader
+                ? markdownPipeline1  // isInline:true,  multipleYamlHeader:true
+                : markdownPipeline2  // isInline:true,  multipleYamlHeader:false
+            : multipleYamlHeader
+                ? markdownPipeline3  // isInline:false, multipleYamlHeader:true
+                : markdownPipeline4; // isInline:false, multipleYamlHeader:false
+    }
+
+    private MarkdownPipeline CreateMarkdownPipeline(Func<MarkdownPipelineBuilder, MarkdownPipelineBuilder> configureMarkdig, bool isInline, bool multipleYamlHeader)
     {
         var enableSourceInfo = _parameters?.Extensions?.EnableSourceInfo ?? true;
 
@@ -140,14 +154,14 @@ public class MarkdigMarkdownService : IMarkdownService
             builder.UseInlineOnly();
         }
 
-        if (_parameters?.Extensions?.MarkdigExtensions is { } extensions && extensions.Length > 0)
+        if (_parameters?.Extensions?.MarkdigExtensions is { Length: > 0 } extensions)
         {
             builder.UseOptionalExtensions(extensions);
         }
 
-        if (_configureMarkdig != null)
+        if (configureMarkdig != null)
         {
-            builder = _configureMarkdig(builder);
+            builder = configureMarkdig(builder);
         }
 
         return builder.Build();
@@ -178,7 +192,7 @@ public class MarkdigMarkdownService : IMarkdownService
 
     private static string GetLink(string path, MarkdownObject origin)
     {
-        if (InclusionContext.IsInclude && RelativePath.IsRelativePath(path) && PathUtility.IsRelativePath(path) && !RelativePath.IsPathFromWorkingFolder(path) && !path.StartsWith("#", StringComparison.Ordinal))
+        if (InclusionContext.IsInclude && RelativePath.IsRelativePath(path) && PathUtility.IsRelativePath(path) && !RelativePath.IsPathFromWorkingFolder(path) && !path.StartsWith('#'))
         {
             return ((RelativePath)InclusionContext.File + (RelativePath)path).GetPathFromWorkingFolder();
         }

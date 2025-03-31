@@ -1,4 +1,7 @@
-﻿using System.Collections.Immutable;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
@@ -33,9 +36,9 @@ partial class SymbolFormatter
 
         public NullableAnnotation NullableAnnotation => default;
 
-        public ImmutableArray<CustomModifier> CustomModifiers => ImmutableArray<CustomModifier>.Empty;
+        public ImmutableArray<CustomModifier> CustomModifiers => [];
 
-        public ImmutableArray<CustomModifier> RefCustomModifiers => ImmutableArray<CustomModifier>.Empty;
+        public ImmutableArray<CustomModifier> RefCustomModifiers => [];
 
         public int Ordinal => 0;
 
@@ -95,7 +98,7 @@ partial class SymbolFormatter
 
         public void Accept(SymbolVisitor visitor) => visitor.VisitParameter(this);
 #nullable enable
-        public TResult? Accept<TResult>(SymbolVisitor<TResult> visitor) => throw new NotImplementedException();
+        public TResult Accept<TResult>(SymbolVisitor<TResult> visitor) => throw new NotImplementedException();
 #nullable disable
         public TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument argument) => throw new NotImplementedException();
         public bool Equals([NotNullWhen(true)] ISymbol other, SymbolEqualityComparer equalityComparer) => throw new NotImplementedException();
@@ -211,6 +214,9 @@ partial class SymbolFormatter
         public string ToDisplayString(SymbolDisplayFormat format = null) => Inner.ToDisplayString(format);
         public ImmutableArray<SymbolDisplayPart> ToMinimalDisplayParts(SemanticModel semanticModel, int position, SymbolDisplayFormat format = null) => Inner.ToMinimalDisplayParts(semanticModel, position, format);
         public string ToMinimalDisplayString(SemanticModel semanticModel, int position, SymbolDisplayFormat format = null) => Inner.ToMinimalDisplayString(semanticModel, position, format);
+        public IPropertySymbol PartialDefinitionPart => Inner.PartialDefinitionPart;
+        public IPropertySymbol PartialImplementationPart => Inner.PartialImplementationPart;
+        public bool IsPartialDefinition => Inner.IsPartialDefinition;
     }
 
     public class MethodSymbol : IMethodSymbol

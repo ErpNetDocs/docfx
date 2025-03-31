@@ -1,4 +1,6 @@
-﻿
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using Markdig.Helpers;
 using Markdig.Parsers;
 
@@ -22,7 +24,7 @@ public class NolocParser : InlineParser
             return false;
         }
 
-        var text = ExtensionsHelper.TryGetStringBeforeChars(new char[] { '\"', '\n' }, ref slice);
+        var text = ExtensionsHelper.TryGetStringBeforeChars(['\"', '\n'], ref slice);
 
         if (text == null || text.Contains('\n'))
         {

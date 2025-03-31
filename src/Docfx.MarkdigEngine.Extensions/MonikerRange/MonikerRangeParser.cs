@@ -10,7 +10,7 @@ namespace Docfx.MarkdigEngine.Extensions;
 
 public class MonikerRangeParser : BlockParser
 {
-    private const string StartString = "moniker";
+    // private const string StartString = "moniker";
     private const string EndString = "moniker-end";
     private const char Colon = ':';
 
@@ -142,7 +142,7 @@ public class MonikerRangeParser : BlockParser
     public override bool Close(BlockProcessor processor, Block block)
     {
         var monikerRange = (MonikerRangeBlock)block;
-        if (monikerRange != null && monikerRange.Closed == false)
+        if (monikerRange is { Closed: false })
         {
             _context.LogWarning("invalid-moniker-range", $"No \"::: {EndString}\" found for \"{monikerRange.MonikerRange}\", MonikerRange does not end explicitly.", block);
         }

@@ -72,7 +72,7 @@ class TocDocumentProcessor : DisposableDocumentProcessor
         model.Content = toc;
     }
 
-    private void UpdateTocItemHref(TocItemViewModel toc, FileModel model, IDocumentBuildContext context, string includedFrom = null)
+    private static void UpdateTocItemHref(TocItemViewModel toc, FileModel model, IDocumentBuildContext context, string includedFrom = null)
     {
         if (toc.IsHrefUpdated) return;
 
@@ -91,7 +91,7 @@ class TocDocumentProcessor : DisposableDocumentProcessor
         toc.OriginalTopicHref = null;
 
         includedFrom = toc.IncludedFrom ?? includedFrom;
-        if (toc.Items != null && toc.Items.Count > 0)
+        if (toc.Items is { Count: > 0 })
         {
             foreach (var item in toc.Items)
             {
@@ -170,7 +170,7 @@ class TocDocumentProcessor : DisposableDocumentProcessor
         return fli.Href + segments;
     }
 
-    private void RegisterTocToContext(TocItemViewModel toc, FileModel model, IDocumentBuildContext context)
+    private static void RegisterTocToContext(TocItemViewModel toc, FileModel model, IDocumentBuildContext context)
     {
         var key = model.Key;
 
@@ -180,7 +180,7 @@ class TocDocumentProcessor : DisposableDocumentProcessor
         context.RegisterTocInfo(new() { TocFileKey = key, Order = toc.Order ?? 0 });
     }
 
-    private void RegisterTocMapToContext(TocItemViewModel item, FileModel model, IDocumentBuildContext context)
+    private static void RegisterTocMapToContext(TocItemViewModel item, FileModel model, IDocumentBuildContext context)
     {
         var key = model.Key;
         // If tocHref is set, href is originally RelativeFolder type, and href is set to the homepage of TocHref,

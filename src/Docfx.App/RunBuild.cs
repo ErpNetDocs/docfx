@@ -16,12 +16,12 @@ internal static class RunBuild
     /// <summary>
     /// Build document with specified settings.
     /// </summary>
-    public static string Exec(BuildJsonConfig config, BuildOptions options, string configDirectory, string outputDirectory = null)
+    public static string Exec(BuildJsonConfig config, BuildOptions options, string configDirectory, string outputDirectory = null, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
         if (config.Template == null || config.Template.Count == 0)
         {
-            config.Template = new ListWithStringFallback { "default" };
+            config.Template = ["default"];
         }
 
         var baseDirectory = Path.GetFullPath(string.IsNullOrEmpty(configDirectory) ? Directory.GetCurrentDirectory() : configDirectory);
@@ -36,7 +36,7 @@ internal static class RunBuild
         {
             var templateManager = new TemplateManager(config.Template, config.Theme, configDirectory);
 
-            DocumentBuilderWrapper.BuildDocument(config, options, templateManager, baseDirectory, outputFolder, null);
+            DocumentBuilderWrapper.BuildDocument(config, options, templateManager, baseDirectory, outputFolder, null, cancellationToken);
 
             templateManager.ProcessTheme(outputFolder, true);
         }

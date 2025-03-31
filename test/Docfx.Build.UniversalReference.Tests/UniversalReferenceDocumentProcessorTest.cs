@@ -15,7 +15,6 @@ namespace Docfx.Build.UniversalReference.Tests;
 public class UniversalReferenceDocumentProcessorTest : TestBase
 {
     private readonly string _outputFolder;
-    private readonly string _inputFolder;
     private readonly ApplyTemplateSettings _applyTemplateSettings;
     private readonly TemplateManager _templateManager;
 
@@ -29,13 +28,13 @@ public class UniversalReferenceDocumentProcessorTest : TestBase
     public UniversalReferenceDocumentProcessorTest()
     {
         _outputFolder = GetRandomFolder();
-        _inputFolder = GetRandomFolder();
-        _applyTemplateSettings = new ApplyTemplateSettings(_inputFolder, _outputFolder)
+        string inputFolder = GetRandomFolder();
+        _applyTemplateSettings = new ApplyTemplateSettings(inputFolder, _outputFolder)
         {
             RawModelExportSettings = { Export = true },
             TransformDocument = true,
         };
-        _templateManager = new TemplateManager(new List<string> { "template" }, null, "TestData/");
+        _templateManager = new TemplateManager(["template"], null, "TestData/");
     }
 
     #region Python
@@ -194,7 +193,7 @@ public class UniversalReferenceDocumentProcessorTest : TestBase
             TemplateManager = _templateManager
         };
 
-        using var builder = new DocumentBuilder(LoadAssemblies(), ImmutableArray<string>.Empty);
+        using var builder = new DocumentBuilder(LoadAssemblies(), []);
         builder.Build(parameters);
     }
 

@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Text.Json.Serialization;
 using Markdig;
 using Markdig.Renderers;
@@ -15,7 +18,7 @@ public class PlantUmlOptions
 
     [JsonProperty("remoteUrl")]
     [JsonPropertyName("remoteUrl")]
-    public string RemoteUrl { get; set; }
+    public string RemoteUrl { get; set; } = "http://www.plantuml.com/plantuml/";
 
     [JsonProperty("localPlantUmlPath")]
     [JsonPropertyName("localPlantUmlPath")]
@@ -27,7 +30,7 @@ public class PlantUmlOptions
 
     [JsonProperty("renderingMode")]
     [JsonPropertyName("renderingMode")]
-    public RenderingMode RenderingMode { get; set; }
+    public RenderingMode RenderingMode { get; set; } = RenderingMode.Remote;
 
     [JsonProperty("delimitor")]
     [JsonPropertyName("delimitor")]

@@ -36,7 +36,7 @@ public class SplitRestApiToOperationLevel : BaseDocumentBuildStep
                 var duplicateKeys = tocRestructions.Where(t => treeItemRestructions.Any(i => i.Key == t.Key)).Select(i => i.Key);
                 if (duplicateKeys.Any())
                 {
-                    Logger.LogWarning($"Model with the key {string.Join(",", duplicateKeys)} already exists. '{model.OriginalFileAndType?.FullPath ?? model.FileAndType.FullPath}' is ignored.");
+                    Logger.LogWarning($"Model with the key {string.Join(',', duplicateKeys)} already exists. '{model.OriginalFileAndType?.FullPath ?? model.FileAndType.FullPath}' is ignored.");
                 }
                 else
                 {
@@ -73,13 +73,13 @@ public class SplitRestApiToOperationLevel : BaseDocumentBuildStep
             operationModel.Metadata["_isSplittedToOperation"] = true;
             var newModel = GenerateNewFileModel(model, operationModel);
             splittedModels.Add(newModel);
-            treeItems.Add(ConvertToTreeItem(operationModel, newModel.Key));
+            treeItems.Add(ConvertToTreeItem(operationModel));
         }
 
         // Reset children
-        content.Children = new List<RestApiChildItemViewModel>();
+        content.Children = [];
         content.Metadata["_isSplittedByOperation"] = true;
-        content.Tags = new List<RestApiTagViewModel>();
+        content.Tags = [];
         model.Content = content;
 
         // Reset uid definition
@@ -123,13 +123,13 @@ public class SplitRestApiToOperationLevel : BaseDocumentBuildStep
                 Summary = child.Summary,
                 Remarks = child.Remarks,
                 Documentation = child.Documentation,
-                Children = new List<RestApiChildItemViewModel> { child },
-                Tags = new List<RestApiTagViewModel>(),
+                Children = [child],
+                Tags = [],
                 Metadata = MergeChildMetadata(root, child)
             };
 
             // Reset child's uid to "originalUid/operation", that is to say, overwrite of original Uid will show in operation page.
-            child.Uid = string.Join("/", child.Uid, "operation");
+            child.Uid = string.Join('/', child.Uid, "operation");
 
             // Reset html id, which is set by template
             child.HtmlId = null;
@@ -139,7 +139,7 @@ public class SplitRestApiToOperationLevel : BaseDocumentBuildStep
             child.Description = null;
             child.Summary = null;
             child.Remarks = null;
-            child.Tags = new List<string>();
+            child.Tags = [];
 
             yield return model;
         }
@@ -167,7 +167,7 @@ public class SplitRestApiToOperationLevel : BaseDocumentBuildStep
         return newModel;
     }
 
-    private static TreeItem ConvertToTreeItem(RestApiRootItemViewModel root, string fileKey)
+    private static TreeItem ConvertToTreeItem(RestApiRootItemViewModel root)
     {
         return new TreeItem
         {
@@ -185,10 +185,7 @@ public class SplitRestApiToOperationLevel : BaseDocumentBuildStep
         foreach (var pair in root.Metadata)
         {
             // Child metadata wins for the same key
-            if (!result.ContainsKey(pair.Key))
-            {
-                result[pair.Key] = pair.Value;
-            }
+            result.TryAdd(pair.Key, pair.Value);
         }
         return result;
     }

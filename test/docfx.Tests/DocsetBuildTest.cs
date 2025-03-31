@@ -24,12 +24,12 @@ public class DocsetBuildTest : TestBase
         {
             var filePath = Path.GetFullPath(Path.Combine(testDirectory, path));
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-            File.WriteAllText(filePath, content);
+            await File.WriteAllTextAsync(filePath, content);
         }
 
         if (!files.ContainsKey("docfx.json"))
         {
-            File.WriteAllText($"{testDirectory}/docfx.json",
+            await File.WriteAllTextAsync($"{testDirectory}/docfx.json",
                 """
                 {
                     "build": {
@@ -47,31 +47,6 @@ public class DocsetBuildTest : TestBase
                         .ToDictionary(
                             f => Path.GetRelativePath(outputDirectory, f),
                             f => new Func<string>(() => File.ReadAllText(f)));
-    }
-
-    private static async Task<Dictionary<string, Func<string>>> Pdf(Dictionary<string, string> files, [CallerMemberName] string testName = null)
-    {
-        var testDirectory = $"{nameof(DocsetBuildTest)}/{testName}";
-        var outputDirectory = $"{testDirectory}/_pdf";
-
-        if (Directory.Exists(testDirectory))
-            Directory.Delete(testDirectory, recursive: true);
-
-        Directory.CreateDirectory(testDirectory);
-        foreach (var (path, content) in files)
-        {
-            var targetPath = Path.Combine(testDirectory, path);
-            Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
-
-            File.WriteAllText(targetPath, content);
-        }
-
-        await Docset.Pdf($"{testDirectory}/docfx.json");
-
-        return Directory.GetFiles(outputDirectory, "*", SearchOption.AllDirectories)
-            .ToDictionary(
-                f => Path.GetRelativePath(outputDirectory, f),
-                f => new Func<string>(() => File.ReadAllText(f)));
     }
 
     [Fact]
@@ -249,12 +224,12 @@ public class DocsetBuildTest : TestBase
                 <meta http-equiv="refresh" content="0;URL='redirected.html'">
               </head>
             </html>
-            """.Replace("\r\n","\n"), result.Trim());
+            """.Replace("\r\n", "\n"), result.Trim());
 
         // Test redirect page.is excluded from sitemap.
         var sitemapXml = outputs["sitemap.xml"]();
         var urls = XDocument.Parse(sitemapXml).Root.Elements();
-        Assert.True(!urls.Any());
+        Assert.False(urls.Any());
     }
 
     [Fact]

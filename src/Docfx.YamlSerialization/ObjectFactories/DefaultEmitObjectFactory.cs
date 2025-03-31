@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -10,15 +11,15 @@ namespace Docfx.YamlSerialization.ObjectFactories;
 
 public class DefaultEmitObjectFactory : ObjectFactoryBase
 {
-    private readonly Dictionary<Type, Func<object>> _cache = new();
+    private readonly ConcurrentDictionary<Type, Func<object>> _cache = [];
     private static Type[] EmptyTypes => Type.EmptyTypes;
 
     public override object Create(Type type)
     {
-        if (!_cache.TryGetValue(type, out Func<object> func))
+        if (!_cache.TryGetValue(type, out var func))
         {
             var realType = type;
-            if (type.IsInterface && type.IsGenericType)
+            if (type is { IsInterface: true, IsGenericType: true })
             {
                 var def = type.GetGenericTypeDefinition();
                 var args = type.GetGenericArguments();
@@ -46,7 +47,12 @@ public class DefaultEmitObjectFactory : ObjectFactoryBase
             {
                 func = CreateValueTypeFactory(type);
             }
-            _cache[type] = func;
+            else
+            {
+                throw new InvalidOperationException($"Failed to gets type instance create func for type: {type.FullName}.");
+            }
+
+            _cache[type] = func!;
         }
         return func();
     }
@@ -56,7 +62,7 @@ public class DefaultEmitObjectFactory : ObjectFactoryBase
         var dm = new DynamicMethod(string.Empty, typeof(object), EmptyTypes);
         var il = dm.GetILGenerator();
         il.Emit(OpCodes.Newobj, ctor);
-        if (ctor.DeclaringType.IsValueType)
+        if (ctor.DeclaringType!.IsValueType)
         {
             il.Emit(OpCodes.Box, ctor.DeclaringType);
         }

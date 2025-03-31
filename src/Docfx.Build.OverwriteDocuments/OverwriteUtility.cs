@@ -7,14 +7,12 @@ using Docfx.Common;
 
 namespace Docfx.Build.OverwriteDocuments;
 
-public static class OverwriteUtility
+public static partial class OverwriteUtility
 {
     private static readonly string[] UidWrappers = ["`", "``", "```", "````", "`````", "``````"];
 
-    private static readonly Regex OPathRegex =
-        new(
-            @"^(?<propertyName>[:A-Za-z_](?>[\w\.\-:]*))(?:\[\s*(?<key>[:A-Za-z_](?>[\w\.\-:]*))\s*=\s*(?:""(?<value>(?:(?>[^""\\]*)|\\.)*)"")\s*\])?(?:\/|$)",
-            RegexOptions.Compiled);
+    [GeneratedRegex(@"^(?<propertyName>[:A-Za-z_](?>[\w\.\-:]*))(?:\[\s*(?<key>[:A-Za-z_](?>[\w\.\-:]*))\s*=\s*(?:""(?<value>(?:(?>[^""\\]*)|\\.)*)"")\s*\])?(?:\/|$)")]
+    private static partial Regex OPathRegex();
 
     public static List<OPathSegment> ParseOPath(string OPathString)
     {
@@ -23,7 +21,7 @@ public static class OverwriteUtility
             throw new ArgumentException("OPathString cannot be null or empty.", nameof(OPathString));
         }
 
-        if (OPathString.EndsWith("/", StringComparison.Ordinal))
+        if (OPathString.EndsWith('/'))
         {
             throw new ArgumentException($"{OPathString} is not a valid OPath");
         }
@@ -33,13 +31,13 @@ public static class OverwriteUtility
         var leftString = OPathString;
         while (leftString.Length > 0)
         {
-            var match = OPathRegex.Match(leftString);
+            var match = OPathRegex().Match(leftString);
             if (match.Length == 0)
             {
                 throw new ArgumentException($"{OPathString} is not a valid OPath");
             }
 
-            if (!match.Value.EndsWith("/", StringComparison.Ordinal) && match.Groups["key"].Success)
+            if (!match.Value.EndsWith('/') && match.Groups["key"].Success)
             {
                 throw new ArgumentException($"{OPathString} is not a valid OPath");
             }
@@ -76,33 +74,34 @@ public static class OverwriteUtility
 
     public static void AddOrUpdateFragmentEntity(this Dictionary<string, MarkdownFragment> fragments, string uid, Dictionary<string, object> metadata = null)
     {
-        if (!fragments.ContainsKey(uid))
+        if (!fragments.TryGetValue(uid, out var value))
         {
-            fragments.Add(uid, new MarkdownFragment
+            value = new MarkdownFragment
             {
                 Uid = uid,
-                Properties = new Dictionary<string, MarkdownProperty>(),
+                Properties = [],
                 Metadata = metadata
-            });
+            };
+            fragments.Add(uid, value);
         }
-        fragments[uid].Metadata = MergeMetadata(fragments[uid].Metadata, metadata);
-        fragments[uid].Touched = true;
+
+        value.Metadata = MergeMetadata(value.Metadata, metadata);
+        value.Touched = true;
     }
 
     public static void AddOrUpdateFragmentProperty(this MarkdownFragment fragment, string oPath, string content = null, Dictionary<string, object> metadata = null)
     {
-        if (!fragment.Properties.ContainsKey(oPath))
+        if (!fragment.Properties.TryGetValue(oPath, out var property))
         {
-            fragment.Properties[oPath] = new MarkdownProperty
-            {
-                OPath = oPath
-            };
+            fragment.Properties[oPath] = property = new MarkdownProperty { OPath = oPath };
         }
-        if (string.IsNullOrEmpty(fragment.Properties[oPath].Content))
+
+        if (string.IsNullOrEmpty(property.Content))
         {
-            fragment.Properties[oPath].Content = string.IsNullOrWhiteSpace(content) ? string.Empty : content.Trim('\n', '\r');
+            property.Content = string.IsNullOrWhiteSpace(content) ? string.Empty : content.Trim('\n', '\r');
         }
-        fragment.Properties[oPath].Touched = true;
+
+        property.Touched = true;
         fragment.Metadata = MergeMetadata(fragment.Metadata, metadata);
     }
 
@@ -156,10 +155,7 @@ public static class OverwriteUtility
         {
             foreach (var pair in right)
             {
-                if (!left.ContainsKey(pair.Key))
-                {
-                    left[pair.Key] = right[pair.Key];
-                }
+                left.TryAdd(pair.Key, pair.Value);
             }
         }
         return left;

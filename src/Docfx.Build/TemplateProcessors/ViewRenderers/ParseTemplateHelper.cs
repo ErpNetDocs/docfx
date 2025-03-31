@@ -7,9 +7,10 @@ using Docfx.Common;
 
 namespace Docfx.Build.Engine;
 
-internal static class ParseTemplateHelper
+internal static partial class ParseTemplateHelper
 {
-    private static readonly Regex IsRegexPatternRegex = new(@"^\s*/(.*)/\s*$", RegexOptions.Compiled);
+    [GeneratedRegex(@"^\s*/(.*)/\s*$")]
+    private static partial Regex IsRegexPatternRegex();
 
     public static string ExpandMasterPage(ResourceFileReader reader, ResourceInfo info, Regex masterRegex, Regex bodyRegex)
     {
@@ -72,15 +73,14 @@ internal static class ParseTemplateHelper
             file = file.Substring(2);
         }
 
-        var regexPatternMatch = IsRegexPatternRegex.Match(file);
+        var regexPatternMatch = IsRegexPatternRegex().Match(file);
         if (regexPatternMatch.Groups.Count > 1)
         {
             file = regexPatternMatch.Groups[1].Value;
             var resourceKey = GetRelativeResourceKey(templateName, file);
-            var regex = new Regex(resourceKey, RegexOptions.IgnoreCase);
             foreach (var name in reader.Names)
             {
-                if (regex.IsMatch(name))
+                if (Regex.IsMatch(name, resourceKey, RegexOptions.IgnoreCase))
                 {
                     yield return name;
                 }

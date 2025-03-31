@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Immutable;
-using System.Reflection;
 using System.Web;
 using Docfx.Build.Engine;
 using Docfx.Common;
@@ -18,7 +17,6 @@ namespace Docfx.Build.ManagedReference.Tests;
 public class ConceptualDocumentProcessorTest : TestBase
 {
     private readonly string _outputFolder;
-    private readonly string _inputFolder;
     private readonly string _templateFolder;
     private readonly FileCollection _defaultFiles;
     private readonly FileCreator _fileCreator;
@@ -29,23 +27,23 @@ public class ConceptualDocumentProcessorTest : TestBase
     public ConceptualDocumentProcessorTest()
     {
         _outputFolder = GetRandomFolder();
-        _inputFolder = GetRandomFolder();
+        string inputFolder = GetRandomFolder();
         _templateFolder = GetRandomFolder();
-        _fileCreator = new FileCreator(_inputFolder);
-        _defaultFiles = new FileCollection(_inputFolder);
+        _fileCreator = new FileCreator(inputFolder);
+        _defaultFiles = new FileCollection(inputFolder);
 
-        _applyTemplateSettings = new ApplyTemplateSettings(_inputFolder, _outputFolder)
+        _applyTemplateSettings = new ApplyTemplateSettings(inputFolder, _outputFolder)
         {
             RawModelExportSettings = { Export = true },
             TransformDocument = true
         };
-        EnvironmentContext.SetBaseDirectory(_inputFolder);
+        EnvironmentContext.SetBaseDirectory(inputFolder);
         EnvironmentContext.SetOutputDirectory(_outputFolder);
 
         // Prepare conceptual template
         var templateCreator = new FileCreator(_templateFolder);
-        var file = templateCreator.CreateFile(@"{{{conceptual}}}", "conceptual.html.tmpl", "default");
-        _templateManager = new TemplateManager(new List<string> { "default" }, null, _templateFolder);
+        var file = templateCreator.CreateFile("{{{conceptual}}}", "conceptual.html.tmpl", "default");
+        _templateManager = new TemplateManager(["default"], null, _templateFolder);
     }
 
     public override void Dispose()
@@ -145,7 +143,7 @@ content);
             var outputRawModelPath = GetRawModelFilePath(file);
             Assert.True(File.Exists(outputRawModelPath));
             var model = JsonUtility.Deserialize<Dictionary<string, object>>(outputRawModelPath);
-            var systemKeys = (JArray)model[Constants.PropertyName.SystemKeys];
+            var systemKeys = ToList(model[Constants.PropertyName.SystemKeys]);
             Assert.NotEmpty(systemKeys);
             foreach (var key in model.Keys.Where(key => key[0] != '_' && key != "meta"))
             {
@@ -370,7 +368,7 @@ Some content";
 
         // Add template for redirection.
         var templateCreator = new FileCreator(_templateFolder);
-        templateCreator.CreateFile(@"{{{redirect_url}}}", "redirection.html.tmpl", "default");
+        templateCreator.CreateFile("{{{redirect_url}}}", "redirection.html.tmpl", "default");
 
         // act
         BuildDocument(files, metadata);
@@ -386,7 +384,7 @@ Some content";
 
         // Test `manifest.json` content
         var manifest = GetOutputManifest();
-        Assert.True(manifest.Files.Count == 1);
+        Assert.Single(manifest.Files);
         Assert.True(manifest.Files[0].Type == Constants.DocumentType.Redirection);
     }
 
@@ -418,7 +416,7 @@ Some content";
             TemplateManager = _templateManager
         };
 
-        using var builder = new DocumentBuilder(Array.Empty<Assembly>(), ImmutableArray<string>.Empty);
+        using var builder = new DocumentBuilder([], []);
         builder.Build(parameters);
     }
 
@@ -446,6 +444,13 @@ Some content";
             File.WriteAllText(filePath, content);
             return fileName.Replace('\\', '/');
         }
+    }
+
+    private static List<object> ToList(object value)
+    {
+        return value is List<object> list
+            ? list
+            : ((JArray)value).Cast<object>().ToList();
     }
 
     #endregion

@@ -1,4 +1,7 @@
-﻿using YamlDotNet.Serialization;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using YamlDotNet.Serialization;
 
 namespace Docfx.YamlSerialization.TypeInspectors;
 
@@ -14,7 +17,7 @@ public sealed class ExtensibleYamlAttributesTypeInspector : ExtensibleTypeInspec
         this.innerTypeDescriptor = innerTypeDescriptor;
     }
 
-    public override IEnumerable<IPropertyDescriptor> GetProperties(Type type, object container)
+    public override IEnumerable<IPropertyDescriptor> GetProperties(Type type, object? container)
     {
         return innerTypeDescriptor.GetProperties(type, container)
             .Where(p => p.GetCustomAttribute<YamlIgnoreAttribute>() == null)
@@ -43,6 +46,12 @@ public sealed class ExtensibleYamlAttributesTypeInspector : ExtensibleTypeInspec
             .OrderBy(p => p.Order);
     }
 
-    public override IPropertyDescriptor GetProperty(Type type, object container, string name) =>
+    public override IPropertyDescriptor? GetProperty(Type type, object? container, string name) =>
         innerTypeDescriptor.GetProperty(type, container, name);
+
+    public override string GetEnumName(Type enumType, string name) =>
+        innerTypeDescriptor.GetEnumName(enumType, name);
+
+    public override string GetEnumValue(object enumValue) =>
+        innerTypeDescriptor.GetEnumValue(enumValue);
 }

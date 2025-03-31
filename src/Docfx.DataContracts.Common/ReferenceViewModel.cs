@@ -50,7 +50,7 @@ public class ReferenceViewModel
     [ExtensibleMember(Constants.ExtensionMemberPrefix.Name)]
     [Newtonsoft.Json.JsonIgnore]
     [System.Text.Json.Serialization.JsonIgnore]
-    public SortedList<string, string> NameInDevLangs { get; private set; } = new SortedList<string, string>();
+    public SortedList<string, string> NameInDevLangs { get; private set; } = [];
 
     [YamlMember(Alias = Constants.PropertyName.NameWithType)]
     [JsonProperty(Constants.PropertyName.NameWithType)]
@@ -60,7 +60,7 @@ public class ReferenceViewModel
     [ExtensibleMember(Constants.ExtensionMemberPrefix.NameWithType)]
     [Newtonsoft.Json.JsonIgnore]
     [System.Text.Json.Serialization.JsonIgnore]
-    public SortedList<string, string> NameWithTypeInDevLangs { get; private set; } = new SortedList<string, string>();
+    public SortedList<string, string> NameWithTypeInDevLangs { get; private set; } = [];
 
     [YamlMember(Alias = Constants.PropertyName.FullName)]
     [JsonProperty(Constants.PropertyName.FullName)]
@@ -70,26 +70,30 @@ public class ReferenceViewModel
     [ExtensibleMember(Constants.ExtensionMemberPrefix.FullName)]
     [Newtonsoft.Json.JsonIgnore]
     [System.Text.Json.Serialization.JsonIgnore]
-    public SortedList<string, string> FullNameInDevLangs { get; private set; } = new SortedList<string, string>();
+    public SortedList<string, string> FullNameInDevLangs { get; private set; } = [];
 
     [ExtensibleMember(Constants.ExtensionMemberPrefix.Spec)]
     [Newtonsoft.Json.JsonIgnore]
     [System.Text.Json.Serialization.JsonIgnore]
-    public SortedList<string, List<SpecViewModel>> Specs { get; private set; } = new SortedList<string, List<SpecViewModel>>();
+    public SortedList<string, List<SpecViewModel>> Specs { get; private set; } = [];
 
     [ExtensibleMember]
     [Newtonsoft.Json.JsonIgnore]
     [System.Text.Json.Serialization.JsonIgnore]
-    public Dictionary<string, object> Additional { get; private set; } = new Dictionary<string, object>();
+    public Dictionary<string, object> Additional { get; private set; } = [];
 
     [EditorBrowsable(EditorBrowsableState.Never)]
     [YamlIgnore]
     [Newtonsoft.Json.JsonExtensionData]
     [System.Text.Json.Serialization.JsonExtensionData]
+    [System.Text.Json.Serialization.JsonInclude]
     [UniqueIdentityReferenceIgnore]
     [MarkdownContentIgnore]
-    public CompositeDictionary AdditionalJson =>
-        CompositeDictionary
+    public CompositeDictionary AdditionalJson
+    {
+        get
+        {
+            return CompositeDictionary
             .CreateBuilder()
             .Add(Constants.ExtensionMemberPrefix.Name, NameInDevLangs, JTokenConverter.Convert<string>)
             .Add(Constants.ExtensionMemberPrefix.NameWithType, NameWithTypeInDevLangs, JTokenConverter.Convert<string>)
@@ -97,6 +101,12 @@ public class ReferenceViewModel
             .Add(Constants.ExtensionMemberPrefix.Spec, Specs, JTokenConverter.Convert<List<SpecViewModel>>)
             .Add(string.Empty, Additional)
             .Create();
+        }
+        private init
+        {
+            // init or getter is required for deserialize data with System.Text.Json.
+        }
+    }
 
     public ReferenceViewModel Clone()
     {

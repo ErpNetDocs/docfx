@@ -1,19 +1,26 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim
+FROM mcr.microsoft.com/dotnet/sdk:8.0-noble
 
 # Add dotnet tools to path.
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
-# Install DocFX as a dotnet tool.
-RUN dotnet tool update -g docfx && \
-    docfx --version
+# Set Node.js path
+ENV PLAYWRIGHT_NODEJS_PATH="/usr/bin/node"
 
-# Install dependences for chromium PDF.
-RUN apt-get update -qq && \
-    apt-get install -y -qq --no-install-recommends \
-    libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
-    libdbus-1-3 libxcb1 libxkbcommon0 libatspi2.0-0 libx11-6 libxcomposite1 libxdamage1 \
-    libxext6 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 && \
-    rm -rf /var/lib/apt/lists/* /tmp/*
+# Set target docfx version.
+ARG DOCFX_VERSION=2.78.2
+
+# Install DocFX as a dotnet tool.
+RUN dotnet tool install docfx -g --version ${DOCFX_VERSION} && \
+    docfx --version && \
+    rm  -f /root/.dotnet/tools/.store/docfx/${DOCFX_VERSION}/docfx/${DOCFX_VERSION}/docfx.nupkg                         && \
+    rm  -f /root/.dotnet/tools/.store/docfx/${DOCFX_VERSION}/docfx/${DOCFX_VERSION}/docfx.${DOCFX_VERSION}.nupkg        && \
+    rm -rf /root/.dotnet/tools/.store/docfx/${DOCFX_VERSION}/docfx/${DOCFX_VERSION}/tools/net9.0
+
+# Install Node.js and browser(chromium) with dependencies
+RUN apt-get install -y -qq --update --no-install-recommends nodejs && \
+    pwsh -File /root/.dotnet/tools/.store/docfx/${DOCFX_VERSION}/docfx/${DOCFX_VERSION}/tools/net8.0/any/playwright.ps1 install --with-deps chromium && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /tmp/*
 
 WORKDIR /opt/prj
 VOLUME [ "/opt/prj" ]

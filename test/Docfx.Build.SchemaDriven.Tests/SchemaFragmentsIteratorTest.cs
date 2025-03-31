@@ -24,7 +24,7 @@ public class SchemaFragmentsIteratorTest
         }
 
         // act
-        iterator.Traverse(yamlStream.Documents[0].RootNode, new Dictionary<string, MarkdownFragment>(), schema);
+        iterator.Traverse(yamlStream.Documents[0].RootNode, [], schema);
 
         // assert
         Assert.Single(counter.ExistingUids);
@@ -36,11 +36,11 @@ public class SchemaFragmentsIteratorTest
 
     private class UidPropertyCounter : ISchemaFragmentsHandler
     {
-        public List<string> ExistingMarkdownProperties { get; private set; } = new List<string>();
+        public List<string> ExistingMarkdownProperties { get; } = [];
 
-        public List<string> MissingMarkdownProperties { get; private set; } = new List<string>();
+        public List<string> MissingMarkdownProperties { get; } = [];
 
-        public List<string> ExistingUids { get; private set; } = new List<string>();
+        public List<string> ExistingUids { get; } = [];
 
         public void HandleUid(string uidKey, YamlMappingNode node, Dictionary<string, MarkdownFragment> fragments, BaseSchema schema, string oPathPrefix, string uid)
         {

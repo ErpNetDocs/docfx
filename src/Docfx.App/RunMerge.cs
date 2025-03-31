@@ -56,7 +56,7 @@ internal static class RunMerge
             OutputBaseDir = outputDirectory,
             Metadata = config.GlobalMetadata?.ToImmutableDictionary() ?? ImmutableDictionary<string, object>.Empty,
             FileMetadata = ConvertToFileMetadataItem(baseDirectory, config.FileMetadata),
-            TocMetadata = config.TocMetadata?.ToImmutableList() ?? ImmutableList<string>.Empty,
+            TocMetadata = config.TocMetadata?.ToImmutableList() ?? [],
             Files = GetFileCollectionFromFileMapping(
                 baseDirectory,
                 DocumentType.Article,
@@ -81,17 +81,6 @@ internal static class RunMerge
         }
 
         return new FileMetadata(baseDirectory, result);
-    }
-
-    private static IEnumerable<string> GetFilesFromFileMapping(FileMapping mapping)
-    {
-        if (mapping == null)
-        {
-            return Enumerable.Empty<string>();
-        }
-        return from file in mapping.Items
-               from item in file.Files
-               select Path.Combine(file.Src ?? Directory.GetCurrentDirectory(), item);
     }
 
     private static FileCollection GetFileCollectionFromFileMapping(string baseDirectory, DocumentType type, FileMapping files)

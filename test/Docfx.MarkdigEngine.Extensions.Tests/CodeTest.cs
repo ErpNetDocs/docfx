@@ -7,7 +7,7 @@ namespace Docfx.MarkdigEngine.Tests;
 
 public class CodeTest
 {
-    public static string contentCSharp = @"using System;
+    private static readonly string contentCSharp = @"using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -60,7 +60,7 @@ namespace TableSnippets
             tbl.Columns[1].Background = Brushes.AliceBlue;
             tbl.Columns[2].Width = new GridLength(20);
             tbl.Columns[3].Background = Brushes.AliceBlue;
-#endregion 
+#endregion
 
             // Get a count of columns hosted by the table.
             // <Snippet_Table_Columns_Count>
@@ -169,7 +169,7 @@ namespace TableSnippets
             tbl.RowGroups.Add(trg);
 
             // Add rows to a TableRowGroup collection.
-            int rowsToAdd = 4; 
+            int rowsToAdd = 4;
             for (int x = 0; x < rowsToAdd; x++)
                 trg.Rows.Add(new TableRow());
 
@@ -200,7 +200,7 @@ namespace TableSnippets
 
             // Remove all rows...
             trg.Rows.Clear();
-            // </Snippet_TableRowGroup_Rows>        
+            // </Snippet_TableRowGroup_Rows>
         }
 
         void TableCellConst()
@@ -216,7 +216,7 @@ namespace TableSnippets
         }
     }
 }";
-    public static string contentCSharp2 = @"using System;
+    private static readonly string contentCSharp2 = @"using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -376,7 +376,7 @@ namespace ChangeFeedSample
         }
     }
 }";
-    public static string contentCSharpRegion = @"using Microsoft.AspNetCore.Builder;
+    private static readonly string contentCSharpRegion = @"using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -446,7 +446,7 @@ namespace TagHelpersBuiltIn
         }
     }
 }";
-    public static string contentASPNet = @"@{
+    private static readonly string contentASPNet = @"@{
     ViewData[""Title""] = ""Anchor Tag Helper"";
 }
 
@@ -650,7 +650,7 @@ namespace TagHelpersBuiltIn
         </tr>
     </tfoot>
 </table>";
-    public static string contentVB = @"'<Snippet1>
+    private static readonly string contentVB = @"'<Snippet1>
 Class ADSetupInformation
 
     Shared Sub Main()
@@ -709,7 +709,7 @@ Class AppDomain2
 End Class
 '</snippet3>
 ";
-    public static string contentCPP = @"//<Snippet1>
+    private static readonly string contentCPP = @"//<Snippet1>
 using namespace System;
 
 int main()
@@ -717,14 +717,14 @@ int main()
     AppDomain^ root = AppDomain::CurrentDomain;
 
     AppDomainSetup^ setup = gcnew AppDomainSetup();
-    setup->ApplicationBase = 
+    setup->ApplicationBase =
         root->SetupInformation->ApplicationBase + ""MyAppSubfolder\\"";
 
     AppDomain^ domain = AppDomain::CreateDomain(""MyDomain"", nullptr, setup);
 
-    Console::WriteLine(""Application base of {0}:\r\n\t{1}"", 
+    Console::WriteLine(""Application base of {0}:\r\n\t{1}"",
         root->FriendlyName, root->SetupInformation->ApplicationBase);
-    Console::WriteLine(""Application base of {0}:\r\n\t{1}"", 
+    Console::WriteLine(""Application base of {0}:\r\n\t{1}"",
         domain->FriendlyName, domain->SetupInformation->ApplicationBase);
 
     AppDomain::Unload(domain);
@@ -771,7 +771,7 @@ int main()
     AppDomain4::Main();
 }
 // </snippet2>";
-    public static string contentCPP2 = @"//<Snippet1>
+    private static readonly string contentCPP2 = @"//<Snippet1>
 using namespace System;
 
 using namespace System::Collections::Generic;
@@ -947,7 +947,7 @@ Remove(""doc"")
 Key ""doc"" is not found.
  */
 //</ Snippet1  >";
-    public static string contentCrazy = @"//<Snippet1>
+    private static readonly string contentCrazy = @"//<Snippet1>
 using namespace System;
 
 int main()
@@ -955,14 +955,14 @@ int main()
     AppDomain^ root = AppDomain::CurrentDomain;
 
     AppDomainSetup^ setup = gcnew AppDomainSetup();
-    setup->ApplicationBase = 
+    setup->ApplicationBase =
         root->SetupInformation->ApplicationBase + ""MyAppSubfolder\\"";
 
     AppDomain^ domain = AppDomain::CreateDomain(""MyDomain"", nullptr, setup);
 
-    Console::WriteLine(""Application base of {0}:\r\n\t{1}"", 
+    Console::WriteLine(""Application base of {0}:\r\n\t{1}"",
         root->FriendlyName, root->SetupInformation->ApplicationBase);
-    Console::WriteLine(""Application base of {0}:\r\n\t{1}"", 
+    Console::WriteLine(""Application base of {0}:\r\n\t{1}"",
         domain->FriendlyName, domain->SetupInformation->ApplicationBase);
 
     AppDomain::Unload(domain);
@@ -1009,7 +1009,7 @@ int main()
     AppDomain4::Main();
 }
 // </snippet2>";
-    public static string contentSQL = @"-- <everything>
+    private static readonly string contentSQL = @"-- <everything>
 --<students>
 SELECT * FROM Students
 WHERE Grade = 12
@@ -1022,7 +1022,7 @@ WHERE Grade = 12
 AND Class = 'Math'
 --</teachers>
 --</everything>";
-    public static string contentPython = @"#<everything>
+    private static readonly string contentPython = @"#<everything>
 #<first>
 from flask import Flask
 app = Flask(__name__)
@@ -1035,21 +1035,21 @@ def hello():
 #</second>
 #</everything>
 ";
-    public static string contentBatch = @"REM <snippet>
+    private static readonly string contentBatch = @"REM <snippet>
 :Label1
 	:Label2
 :: Comment line 3
 REM </snippet>
 	:: Comment line 4
 IF EXIST C:\AUTOEXEC.BAT REM AUTOEXEC.BAT exists";
-    public static string contentErlang = @"-module(hello_world).
+    private static readonly string contentErlang = @"-module(hello_world).
 -compile(export_all).
 
 % <snippet>
 hello() ->
     io:format(""hello world~n"").
 % </snippet>";
-    public static string contentLisp = @";<everything>
+    private static readonly string contentLisp = @";<everything>
 USER(64): (member 'b '(perhaps today is a good day to die)) ; test fails
 NIL
 ;<inner>
@@ -1057,7 +1057,7 @@ USER(65): (member 'a '(perhaps today is a good day to die)) ; returns non-NIL
 '(a good day to die)
 ; </inner>
 ;</everything>";
-    public static string contentRuby = @"source 'https://rubygems.org'
+    private static readonly string contentRuby = @"source 'https://rubygems.org'
 git_source(:github) { |repo| ""https://github.com/#{repo}.git"" }
 
 ruby '2.6.5'
@@ -1119,7 +1119,7 @@ gem 'httparty', '~> 0.17.1'
 gem 'activerecord-session_store', '~> 1.1'
 # </GemFileSnippet>
 ";
-    public static string contentCSS = @"body {
+    private static readonly string contentCSS = @"body {
   padding-top: 70px;
 }
 
@@ -1315,14 +1315,14 @@ int main()
     AppDomain^ root = AppDomain::CurrentDomain;
 
     AppDomainSetup^ setup = gcnew AppDomainSetup();
-    setup-&gt;ApplicationBase = 
+    setup-&gt;ApplicationBase =
         root-&gt;SetupInformation-&gt;ApplicationBase + &quot;MyAppSubfolder\\&quot;;
 
     AppDomain^ domain = AppDomain::CreateDomain(&quot;MyDomain&quot;, nullptr, setup);
 
-    Console::WriteLine(&quot;Application base of {0}:\r\n\t{1}&quot;, 
+    Console::WriteLine(&quot;Application base of {0}:\r\n\t{1}&quot;,
         root-&gt;FriendlyName, root-&gt;SetupInformation-&gt;ApplicationBase);
-    Console::WriteLine(&quot;Application base of {0}:\r\n\t{1}&quot;, 
+    Console::WriteLine(&quot;Application base of {0}:\r\n\t{1}&quot;,
         domain-&gt;FriendlyName, domain-&gt;SetupInformation-&gt;ApplicationBase);
 
     AppDomain::Unload(domain);
@@ -1870,8 +1870,8 @@ gem &#39;activerecord-session_store&#39;, &#39;~&gt; 1.1&#39;
     public void CodeTestBlockGeneralCSharp_Error(string source)
     {
         // arrange
-        var filename = string.Empty;
-        var content = string.Empty;
+        string filename;
+        string content;
         if (source.Contains("source.cs"))
         {
             filename = "source.cs";

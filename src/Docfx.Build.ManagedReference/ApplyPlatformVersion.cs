@@ -27,9 +27,8 @@ public class ApplyPlatformVersion : BaseDocumentBuildStep
             }
             var page = m.Content as PageViewModel;
             if (page?.Metadata != null &&
-                page.Metadata.TryGetValue("platform", out object value))
+                page.Metadata.Remove("platform", out object value))
             {
-                page.Metadata.Remove("platform");
                 var list = GetPlatformVersionFromMetadata(value);
                 if (list != null)
                 {
@@ -61,7 +60,7 @@ public class ApplyPlatformVersion : BaseDocumentBuildStep
     {
         if (value is string text)
         {
-            return new List<string> { text };
+            return [text];
         }
 
         if (value is IEnumerable<object> collection)

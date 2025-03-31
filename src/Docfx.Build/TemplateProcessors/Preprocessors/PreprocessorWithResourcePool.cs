@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Docfx.Common;
-using Esprima;
 using Jint.Runtime;
 
 namespace Docfx.Build.Engine;
@@ -26,11 +25,7 @@ internal class PreprocessorWithResourcePool : ITemplatePreprocessor
         catch (Exception e)
         {
             _preprocessorPool = null;
-            Logger.LogWarning(
-                e.InnerException is ParserException parserEx
-                ? $"\"{parserEx.Source}\" not a valid template preprocessor, ignored: {parserEx.Message}"
-                : $"Not a valid template preprocessor, ignored: {e.Message}"
-            );
+            Logger.LogWarning($"Not a valid template preprocessor, ignored: {e.Message}");
         }
     }
 
@@ -72,13 +67,16 @@ internal class PreprocessorWithResourcePool : ITemplatePreprocessor
         {
             return lease.Resource.TransformModel(model);
         }
+        catch (JavaScriptException ex)
+        {
+            throw BuildException(ex.GetJavaScriptErrorString());
+        }
         catch (Exception ex)
         {
-            string message = ex is JavaScriptException jsException
-                ? jsException.GetJavaScriptErrorString()
-                : ex.Message;
-
-            throw new InvalidPreprocessorException($"Error running Transform function inside template preprocessor: {message}");
+            throw BuildException(ex.Message);
         }
+
+        Exception BuildException(string message) =>
+            new InvalidPreprocessorException($"Error running Transform function inside template preprocessor: {message}");
     }
 }

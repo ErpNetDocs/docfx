@@ -10,10 +10,10 @@ namespace Docfx.Dotnet;
 internal class ConfigFilterRule
 {
     [YamlMember(Alias = "apiRules")]
-    public List<ConfigFilterRuleItemUnion> ApiRules { get; set; } = new List<ConfigFilterRuleItemUnion>();
+    public List<ConfigFilterRuleItemUnion> ApiRules { get; set; } = [];
 
     [YamlMember(Alias = "attributeRules")]
-    public List<ConfigFilterRuleItemUnion> AttributeRules { get; set; } = new List<ConfigFilterRuleItemUnion>();
+    public List<ConfigFilterRuleItemUnion> AttributeRules { get; set; } = [];
 
     public bool CanVisitApi(SymbolFilterData symbol)
     {
@@ -46,7 +46,7 @@ internal class ConfigFilterRule
         }
         if (!File.Exists(configFile)) throw new FileNotFoundException($"Filter Config file {configFile} does not exist!");
 
-        ConfigFilterRule rule = null;
+        ConfigFilterRule rule;
         try
         {
             rule = YamlUtility.Deserialize<ConfigFilterRule>(configFile);

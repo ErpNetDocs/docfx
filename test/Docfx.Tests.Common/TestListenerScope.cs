@@ -7,7 +7,7 @@ namespace Docfx.Tests.Common;
 
 public class TestListenerScope : ILoggerListener, IDisposable
 {
-    private static AsyncLocal<List<ILogItem>> s_items = new();
+    private static readonly AsyncLocal<List<ILogItem>> s_items = new();
     private readonly LogLevel _logLevel;
 
     public List<ILogItem> Items => s_items.Value;
@@ -15,7 +15,7 @@ public class TestListenerScope : ILoggerListener, IDisposable
     public TestListenerScope(LogLevel logLevel = LogLevel.Warning)
     {
         _logLevel = logLevel;
-        s_items.Value = new();
+        s_items.Value = [];
         Logger.RegisterListener(this);
     }
 
@@ -24,7 +24,7 @@ public class TestListenerScope : ILoggerListener, IDisposable
     public void WriteLine(ILogItem item)
     {
         if (item.LogLevel >= _logLevel)
-            s_items.Value.Add(item);
+            s_items.Value?.Add(item);
     }
 
     public IEnumerable<ILogItem> GetItemsByLogLevel(LogLevel logLevel)

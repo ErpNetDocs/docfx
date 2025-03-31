@@ -16,17 +16,14 @@ namespace Docfx.Dotnet;
 
 partial class DotnetApiCatalog
 {
-    private static async Task<List<(IAssemblySymbol symbol, Compilation compilation)>> Compile(ExtractMetadataConfig config, DotnetApiOptions options)
+    private static async Task<List<(IAssemblySymbol symbol, Compilation compilation)>> Compile(ExtractMetadataConfig config)
     {
         var files = config.Files?.Select(s => new FileInformation(s))
             .GroupBy(f => f.Type)
-            .ToDictionary(s => s.Key, s => s.Distinct().ToList()) ?? new();
+            .ToDictionary(s => s.Key, s => s.Distinct().ToList()) ?? [];
 
-        var msbuildProperties = config.MSBuildProperties ?? new Dictionary<string, string>();
-        if (!msbuildProperties.ContainsKey("Configuration"))
-        {
-            msbuildProperties["Configuration"] = "Release";
-        }
+        var msbuildProperties = config.MSBuildProperties ?? [];
+        msbuildProperties.TryAdd("Configuration", "Release");
 
         // NOTE:
         // logger parameter is not works when using Roslyn 4.9.0 or later.
@@ -89,11 +86,7 @@ partial class DotnetApiCatalog
         }
 
         var references = config.References ?? [];
-        var metadataReferences = references.Select(assemblyPath =>
-        {
-            var documentation = XmlDocumentationProvider.CreateFromFile(Path.ChangeExtension(assemblyPath, ".xml"));
-            return MetadataReference.CreateFromFile(assemblyPath, documentation: documentation);
-        }).ToArray();
+        var metadataReferences = references.Select(CompilationHelper.CreateMetadataReference).ToArray();
 
         // LoadCompilationFrom C# source files
         if (files.TryGetValue(FileType.CSSourceCode, out var csFiles))
@@ -125,7 +118,7 @@ partial class DotnetApiCatalog
 
         if (hasCompilationError)
         {
-            return new();
+            return [];
         }
 
         if (assemblies.Count <= 0)
@@ -145,7 +138,8 @@ partial class DotnetApiCatalog
                 Logger.LogInfo($"Loading project {path}");
                 if (!config.NoRestore)
                 {
-                    await Process.Start("dotnet", $"restore \"{path}\"").WaitForExitAsync();
+                    using var process = Process.Start("dotnet", $"restore \"{path}\"");
+                    await process.WaitForExitAsync();
                 }
                 project = await workspace.OpenProjectAsync(path, msbuildLogger);
 

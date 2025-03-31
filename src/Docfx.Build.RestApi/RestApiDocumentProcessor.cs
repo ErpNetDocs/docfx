@@ -211,7 +211,7 @@ public class RestApiDocumentProcessor : ReferenceDocumentProcessorBase
             if (jObject.TryGetValue("swagger", out JToken swaggerValue))
             {
                 var swaggerString = (string)swaggerValue;
-                if (swaggerString != null && swaggerString.Equals("2.0"))
+                if (swaggerString is "2.0")
                 {
                     return true;
                 }
@@ -248,7 +248,8 @@ public class RestApiDocumentProcessor : ReferenceDocumentProcessorBase
 
     private static string ChangeFileExtension(string file)
     {
-        return file.Substring(0, file.Length - SupportedFileEndings.First(s => IsSupportedFileEnding(file, s)).Length) + ".json";
+        var suffix = SupportedFileEndings.First(s => IsSupportedFileEnding(file, s));
+        return $"{file.AsSpan(0, file.Length - suffix.Length)}.json";
     }
 
     private static Dictionary<string, object> MergeMetadata(IDictionary<string, object> item, IDictionary<string, object> overwriteItems)
@@ -256,12 +257,10 @@ public class RestApiDocumentProcessor : ReferenceDocumentProcessorBase
         var result = new Dictionary<string, object>(item);
         foreach (var pair in overwriteItems.OrderBy(item => item.Key))
         {
-            if (result.ContainsKey(pair.Key))
+            if (!result.TryAdd(pair.Key, pair.Value))
             {
                 Logger.LogWarning($"Metadata \"{pair.Key}\" inside rest api is overwritten.");
             }
-
-            result[pair.Key] = pair.Value;
         }
         return result;
     }

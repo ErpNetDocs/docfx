@@ -51,33 +51,33 @@ public class GlobFileTest : TestBase
         CreateFilesOrFolders(_workingDirectory, files);
         var result = FileGlob.GetFiles(
             _workingDirectory,
-            new string[] { "**.md" },
+            ["**.md"],
             null).ToArray();
         Assert.Equal(3, result.Length);
         result = FileGlob.GetFiles(
             _workingDirectory,
             null,
-            new string[] { "**.md" }).ToArray();
+            ["**.md"]).ToArray();
         Assert.Empty(result);
         result = FileGlob.GetFiles(
             _workingDirectory,
-            new string[] { "**" },
-            new string[] { "**.md" }).ToArray();
+            ["**"],
+            ["**.md"]).ToArray();
         Assert.Equal(6, result.Length);
         result = FileGlob.GetFiles(
              _workingDirectory,
-             new string[] { "**.md" },
-             new string[] { "**{J,L}/**" }).ToArray();
+             ["**.md"],
+             ["**{J,L}/**"]).ToArray();
         Assert.Single(result);
         result = FileGlob.GetFiles(
              _workingDirectory,
-             new string[] { "**.md", "**.csproj" },
-             new string[] { "**J/**", "**/M/**" }).ToArray();
+             ["**.md", "**.csproj"],
+             ["**J/**", "**/M/**"]).ToArray();
         Assert.Single(result);
         result = FileGlob.GetFiles(
              _workingDirectory + "/Root",
-             new string[] { "[EJ]/*.{md,cs,csproj}" },
-             new string[] { "**.cs" }).ToArray();
+             ["[EJ]/*.{md,cs,csproj}"],
+             ["**.cs"]).ToArray();
         Assert.Equal(2, result.Length);
     }
 
@@ -87,7 +87,7 @@ public class GlobFileTest : TestBase
         foreach (var i in items)
         {
             var item = cwd + "/" + i;
-            if (item.EndsWith("/"))
+            if (item.EndsWith('/'))
             {
                 Directory.CreateDirectory(item);
             }

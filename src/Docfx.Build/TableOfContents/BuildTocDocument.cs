@@ -31,11 +31,11 @@ class BuildTocDocument : BaseDocumentBuildStep
     {
         var toc = (TocItemViewModel)model.Content;
         TocRestructureUtility.Restructure(toc, host.TableOfContentRestructions);
-        BuildCore(toc, model, host);
+        BuildCore(toc, model);
         // todo : metadata.
     }
 
-    private static void BuildCore(TocItemViewModel item, FileModel model, IHostService hostService, string includedFrom = null)
+    private static void BuildCore(TocItemViewModel item, FileModel model, string includedFrom = null)
     {
         if (item == null)
         {
@@ -70,7 +70,7 @@ class BuildTocDocument : BaseDocumentBuildStep
         {
             foreach (var i in item.Items)
             {
-                BuildCore(i, model, hostService, includedFrom);
+                BuildCore(i, model, includedFrom);
             }
         }
 
@@ -83,14 +83,8 @@ class BuildTocDocument : BaseDocumentBuildStep
         }
     }
 
-    private static string ParseFile(string link)
-    {
-        var queryIndex = link.IndexOfAny(['?', '#']);
-        return queryIndex == -1 ? link : link.Remove(queryIndex);
-    }
-
     private static void AddOrUpdate(Dictionary<string, ImmutableList<LinkSourceInfo>> dict, string path, LinkSourceInfo source)
-        => dict[path] = dict.TryGetValue(path, out var sources) ? sources.Add(source) : ImmutableList.Create(source);
+        => dict[path] = dict.TryGetValue(path, out var sources) ? sources.Add(source) : [source];
 
     private static LinkSourceInfo GetLinkSourceInfo(string path, string anchor, string source, string includedFrom)
     {

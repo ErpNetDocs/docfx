@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Docfx.Common;
 using Docfx.Plugins;
 using Docfx.Tests.Common;
 
@@ -439,7 +438,7 @@ test2
         // https://github.com/sebastienros/jint/issues/357
 
         var templateName = "TemplateFolder.html";
-        string defaultTemplate = @"{{name}}";
+        string defaultTemplate = "{{name}}";
         var name = "this is a looooooooooooooooooooooooooooooooooooog name";
         var longName = string.Concat(Enumerable.Repeat(name, 20000));
         string script = @"
@@ -480,7 +479,7 @@ exports.transform = function (model){
         // https://github.com/sebastienros/jint/issues/364
 
         var templateName = "TemplateFolder.html";
-        string defaultTemplate = @"{{result1}},{{result2}}";
+        string defaultTemplate = "{{result1}},{{result2}}";
         string script = @"
 exports.transform = function (model){
     var url = 'https://www.example.com';
@@ -518,7 +517,7 @@ exports.transform = function (model){
     public void JsCreateDateShouldNotThrowError()
     {
         var templateName = "TemplateFolder.html";
-        string defaultTemplate = @"{{date}}";
+        string defaultTemplate = "{{date}}";
         string script = @"
 exports.transform = function (model){
     return {
@@ -585,18 +584,10 @@ exports.transform = function (model){
             var filePath = Path.Combine(cwd ?? string.Empty, file.Item1);
             var directory = Path.GetDirectoryName(filePath);
 
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            if (!string.IsNullOrEmpty(directory))
                 Directory.CreateDirectory(directory);
             File.WriteAllText(filePath, file.Item2);
         }
-    }
-
-    private static void WriteModel(string path, object model)
-    {
-        var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir))
-            Directory.CreateDirectory(dir);
-        JsonUtility.Serialize(path, model);
     }
 
     private static void AssertEqualIgnoreCrlf(string expected, string actual)

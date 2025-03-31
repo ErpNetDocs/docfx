@@ -3,7 +3,6 @@
 
 using System.Text;
 using Docfx.Common;
-using Docfx.Plugins;
 using FluentAssertions;
 using Xunit;
 
@@ -19,17 +18,17 @@ public class XRefMapSerializationTest
             BaseUrl = "http://localhost",
             Sorted = true,
             HrefUpdated = null,
-            Redirections = new List<XRefMapRedirection>
-            {
-                new XRefMapRedirection
+            Redirections =
+            [
+                new()
                 {
                     Href = "Dummy",
                     UidPrefix = "Dummy"
                 },
-            },
-            References = new List<XRefSpec>
-            {
-                new XRefSpec(new Dictionary<string,object>
+            ],
+            References =
+            [
+                new(new Dictionary<string,object>
                 {
                     ["Additional1"] = "Dummy",
                 })
@@ -40,7 +39,7 @@ public class XRefMapSerializationTest
                     CommentId ="Dummy",
                     IsSpec = true,
                 },
-            },
+            ],
             Others = new Dictionary<string, object>
             {
                 ["StringValue"] = "Dummy",

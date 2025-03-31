@@ -8,11 +8,16 @@ using Markdig.Parsers;
 
 namespace Docfx.MarkdigEngine.Extensions;
 
-public static class ExtensionsHelper
+public static partial class ExtensionsHelper
 {
-    public static readonly Regex HtmlEscapeWithEncode = new(@"&", RegexOptions.Compiled);
-    public static readonly Regex HtmlEscapeWithoutEncode = new(@"&(?!#?\w+;)", RegexOptions.Compiled);
-    public static readonly Regex HtmlUnescape = new(@"&([#\w]+);", RegexOptions.Compiled);
+    [GeneratedRegex("&")]
+    private static partial Regex HtmlEscapeWithEncode();
+
+    [GeneratedRegex(@"&(?!#?\w+;)")]
+    private static partial Regex HtmlEscapeWithoutEncode();
+
+    [GeneratedRegex(@"&([#\w]+);")]
+    private static partial Regex HtmlUnescape();
 
     public static char SkipSpaces(ref StringSlice slice)
     {
@@ -29,7 +34,7 @@ public static class ExtensionsHelper
     public static string Escape(string html, bool encode = false)
     {
         return html
-            .ReplaceRegex(encode ? HtmlEscapeWithEncode : HtmlEscapeWithoutEncode, "&amp;")
+            .ReplaceRegex(encode ? HtmlEscapeWithEncode() : HtmlEscapeWithoutEncode(), "&amp;")
             .Replace("<", "&lt;")
             .Replace(">", "&gt;")
             .Replace("\"", "&quot;")
@@ -38,7 +43,7 @@ public static class ExtensionsHelper
 
     public static string Unescape(string html)
     {
-        return HtmlUnescape.Replace(html, match =>
+        return HtmlUnescape().Replace(html, match =>
         {
             var n = match.Groups[1].Value;
 
@@ -162,7 +167,7 @@ public static class ExtensionsHelper
         }
     }
 
-    public static string TryGetStringBeforeChars(IEnumerable<char> chars, ref StringSlice slice, bool breakOnWhitespace = false)
+    public static string TryGetStringBeforeChars(IReadOnlyList<char> chars, ref StringSlice slice, bool breakOnWhitespace = false)
     {
         StringSlice savedSlice = slice;
         var c = slice.CurrentChar;
@@ -198,26 +203,6 @@ public static class ExtensionsHelper
     }
 
     #region private methods
-    private static string GetAbsolutePathWithTildeCore(string basePath, string tildePath)
-    {
-        var index = 1;
-        var ch = tildePath[index];
-        while (ch == '/' || ch == '\\')
-        {
-            index++;
-            ch = tildePath[index];
-        }
-
-        if (index == tildePath.Length)
-        {
-            return basePath;
-        }
-
-        var pathWithoutTilde = tildePath.Substring(index);
-
-        return NormalizePath(Path.Combine(basePath, pathWithoutTilde));
-    }
-
     private static bool CharEqual(char ch1, char ch2, bool isCaseSensitive)
     {
         return isCaseSensitive ? ch1 == ch2 : char.ToLower(ch1) == char.ToLower(ch2);
@@ -282,12 +267,12 @@ public static class ExtensionsHelper
         string includedFilePath;
         if (slice.CurrentChar == '<')
         {
-            includedFilePath = TryGetStringBeforeChars(new char[] { ')', '>' }, ref slice, breakOnWhitespace: true);
+            includedFilePath = TryGetStringBeforeChars([')', '>'], ref slice, breakOnWhitespace: true);
         }
         else
         {
-            includedFilePath = TryGetStringBeforeChars(new char[] { ')' }, ref slice, breakOnWhitespace: true);
-        };
+            includedFilePath = TryGetStringBeforeChars([')'], ref slice, breakOnWhitespace: true);
+        }
 
         if (includedFilePath == null)
         {
@@ -296,7 +281,7 @@ public static class ExtensionsHelper
 
         if (includedFilePath.Length >= 1 && includedFilePath.First() == '<' && slice.CurrentChar == '>')
         {
-            includedFilePath = includedFilePath.Substring(1, includedFilePath.Length - 1).Trim();
+            includedFilePath = includedFilePath.Substring(1).Trim();
         }
 
         if (slice.CurrentChar == ')')
@@ -307,21 +292,13 @@ public static class ExtensionsHelper
         }
         else
         {
-            var title = TryGetStringBeforeChars(new char[] { ')' }, ref slice, breakOnWhitespace: false);
+            var title = TryGetStringBeforeChars([')'], ref slice, breakOnWhitespace: false);
             if (title == null)
             {
                 return false;
             }
             else
             {
-                if (title.Length >= 2 && title.First() == '\'' && title.Last() == '\'')
-                {
-                    title = title.Substring(1, title.Length - 2).Trim();
-                }
-                else if (title.Length >= 2 && title.First() == '\"' && title.Last() == '\"')
-                {
-                    title = title.Substring(1, title.Length - 2).Trim();
-                }
                 path = includedFilePath;
                 slice.NextChar();
                 return true;

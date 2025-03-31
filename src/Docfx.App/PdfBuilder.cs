@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
@@ -18,6 +19,7 @@ using Spectre.Console;
 
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Actions;
+using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.Graphics.Operations.SpecialGraphicsState;
 using UglyToad.PdfPig.Outline;
 using UglyToad.PdfPig.Outline.Destinations;
@@ -31,6 +33,8 @@ namespace Docfx.Pdf;
 
 static class PdfBuilder
 {
+    private static readonly SearchValues<char> InvalidPathChars = SearchValues.Create(Path.GetInvalidPathChars());
+
     class Outline
     {
         public string name { get; init; } = "";
@@ -47,24 +51,26 @@ static class PdfBuilder
         public string? pdfFooterTemplate { get; init; }
     }
 
-    public static Task Run(BuildJsonConfig config, string configDirectory, string? outputDirectory = null)
+    public static Task Run(BuildJsonConfig config, string configDirectory, string? outputDirectory = null, CancellationToken cancellationToken = default)
     {
         var outputFolder = Path.GetFullPath(Path.Combine(
             string.IsNullOrEmpty(outputDirectory) ? Path.Combine(configDirectory, config.Output ?? "") : outputDirectory,
             config.Dest ?? ""));
 
         Logger.LogInfo($"Searching for manifest in {outputFolder}");
-        return CreatePdf(outputFolder);
+        return CreatePdf(outputFolder, cancellationToken);
     }
 
-    public static async Task CreatePdf(string outputFolder)
+    public static async Task CreatePdf(string outputFolder, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
         var pdfTocs = GetPdfTocs().ToDictionary(p => p.url, p => p.toc);
         if (pdfTocs.Count == 0)
             return;
 
-        Program.Main(["install", "chromium"]);
+        PlaywrightHelper.EnsurePlaywrightNodeJsPath();
+
+        Program.Main(["install", "chromium", "--only-shell"]);
 
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
@@ -76,7 +82,7 @@ static class PdfBuilder
         using var app = builder.Build();
         app.UseServe(outputFolder);
         app.MapGet("/_pdftoc/{*url}", TocPage);
-        await app.StartAsync();
+        await app.StartAsync(cancellationToken);
 
         baseUrl = new Uri(app.Urls.First());
 
@@ -91,27 +97,54 @@ static class PdfBuilder
 
         using var pageLimiter = new SemaphoreSlim(Environment.ProcessorCount, Environment.ProcessorCount);
         var pagePool = new ConcurrentBag<IPage>();
-        var headerFooterCache = new ConcurrentDictionary<(string, string), Task<byte[]>>();
+        var headerFooterTemplateCache = new ConcurrentDictionary<string, string>();
+        var headerFooterPageCache = new ConcurrentDictionary<(string, string), Task<byte[]>>();
 
-        await AnsiConsole.Progress().StartAsync(async progress =>
+        var pdfBuildTask = AnsiConsole.Progress().StartAsync(async progress =>
         {
-            await Parallel.ForEachAsync(pdfTocs, async (item, _) =>
+            await Parallel.ForEachAsync(pdfTocs, new ParallelOptions { CancellationToken = cancellationToken }, async (item, _) =>
             {
                 var (url, toc) = item;
                 var outputName = Path.Combine(Path.GetDirectoryName(url) ?? "", toc.pdfFileName ?? Path.ChangeExtension(Path.GetFileName(url), ".pdf"));
                 var task = progress.AddTask(outputName);
-                var outputPath = Path.Combine(outputFolder, outputName);
+                var pdfOutputPath = Path.Combine(outputFolder, outputName);
 
                 await CreatePdf(
-                    PrintPdf, PrintHeaderFooter, task, new(baseUrl, url), toc, outputPath,
-                    pageNumbers => pdfPageNumbers[url] = pageNumbers);
+                    PrintPdf, PrintHeaderFooter, task, new(baseUrl, url), toc, outputFolder, pdfOutputPath,
+                    pageNumbers => pdfPageNumbers[url] = pageNumbers,
+                    cancellationToken);
 
                 task.Value = task.MaxValue;
                 task.StopTask();
             });
         });
 
+        try
+        {
+            await pdfBuildTask.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!pdfBuildTask.IsCompleted)
+            {
+                // If pdf generation task is not completed.
+                // Manually close playwright context/browser to immediately shutdown remaining tasks.
+                await context.CloseAsync();
+                await browser.CloseAsync();
+                try
+                {
+                    await pdfBuildTask; // Wait AnsiConsole.Progress operation completed to output logs.
+                }
+                catch
+                {
+                    Logger.LogError($"PDF file generation is canceled by user interaction.");
+                    return;
+                }
+            }
+        }
+
         Logger.LogVerbose($"PDF done in {stopwatch.Elapsed}");
+        return;
 
         IEnumerable<(string url, Outline toc)> GetPdfTocs()
         {
@@ -137,13 +170,13 @@ static class PdfBuilder
 
         IResult TocPage(string url)
         {
-            var pageNumbers = pdfPageNumbers.TryGetValue(url, out var x) ? x : default;
+            var pageNumbers = pdfPageNumbers.GetValueOrDefault(url);
             return Results.Content(TocHtmlTemplate(new Uri(baseUrl!, url), pdfTocs[url], pageNumbers).ToString(), "text/html", Encoding.UTF8);
         }
 
         async Task<byte[]?> PrintPdf(Outline outline, Uri url)
         {
-            await pageLimiter.WaitAsync();
+            await pageLimiter.WaitAsync(cancellationToken);
             var page = pagePool.TryTake(out var pooled) ? pooled : await context.NewPageAsync();
 
             try
@@ -179,28 +212,43 @@ static class PdfBuilder
             }
         }
 
-        Task<byte[]> PrintHeaderFooter(Outline toc, int pageNumber, int totalPages)
+        Task<byte[]> PrintHeaderFooter(Outline toc, int pageNumber, int totalPages, Page contentPage)
         {
-            var headerTemplate = ExpandTemplate(toc.pdfHeaderTemplate, pageNumber, totalPages);
-            var footerTemplate = ExpandTemplate(toc.pdfFooterTemplate ?? DefaultFooterTemplate, pageNumber, totalPages);
+            var headerTemplate = ExpandTemplate(GetHeaderFooter(toc.pdfHeaderTemplate), pageNumber, totalPages);
+            var footerTemplate = ExpandTemplate(GetHeaderFooter(toc.pdfFooterTemplate) ?? DefaultFooterTemplate, pageNumber, totalPages);
 
-            return headerFooterCache.GetOrAdd((headerTemplate, footerTemplate), _ => PrintHeaderFooterCore());
+            return headerFooterPageCache.GetOrAdd((headerTemplate, footerTemplate), _ => PrintHeaderFooterCore());
 
             async Task<byte[]> PrintHeaderFooterCore()
             {
-                await pageLimiter.WaitAsync();
+                await pageLimiter.WaitAsync(cancellationToken);
                 var page = pagePool.TryTake(out var pooled) ? pooled : await context.NewPageAsync();
 
                 try
                 {
                     await page.GotoAsync("about:blank");
 
-                    return await page.PdfAsync(new()
+                    var options = new PagePdfOptions
                     {
                         DisplayHeaderFooter = true,
                         HeaderTemplate = headerTemplate,
                         FooterTemplate = footerTemplate,
-                    });
+                    };
+
+                    if (TryGetPlaywrightPageFormat(contentPage.Size, out var pageFormat))
+                    {
+                        options.Format = pageFormat;
+                        options.Landscape = contentPage.Width > contentPage.Height;
+                    }
+                    else
+                    {
+                        var customPageSize = GetPageSizeSettings(contentPage);
+                        options.Width = customPageSize.Width;
+                        options.Height = customPageSize.Height;
+                        options.Landscape = customPageSize.Landscape;
+                    }
+
+                    return await page.PdfAsync(options);
                 }
                 finally
                 {
@@ -217,16 +265,42 @@ static class PdfBuilder
                     .Replace("<span class='totalPages'></span>", $"<span>{totalPages}</span>")
                     .Replace("<span class=\"totalPages\"></span>", $"<span>{totalPages}</span>");
             }
+
+            string? GetHeaderFooter(string? template)
+            {
+                if (string.IsNullOrEmpty(template))
+                    return template;
+
+                // Check path chars. If it's contains HTML chars. Skip access to file content to optimmize performance
+                if (template.AsSpan().ContainsAny(InvalidPathChars))
+                    return template;
+
+                return headerFooterTemplateCache.GetOrAdd(template, (_) =>
+                {
+                    // Note: This valueFactory might be called multiple times.
+                    try
+                    {
+                        var path = Path.GetFullPath(Path.Combine(outputFolder, template));
+                        if (!File.Exists(path))
+                            return template;
+
+                        var templateContent = File.ReadAllText(path);
+                        return templateContent;
+                    }
+                    catch
+                    {
+                        return template;
+                    }
+                });
+            }
+
         }
     }
 
     static async Task CreatePdf(
-        Func<Outline, Uri, Task<byte[]?>> printPdf, Func<Outline, int, int, Task<byte[]>> printHeaderFooter, ProgressTask task,
-        Uri outlineUrl, Outline outline, string outputPath, Action<Dictionary<Outline, int>> updatePageNumbers)
+        Func<Outline, Uri, Task<byte[]?>> printPdf, Func<Outline, int, int, Page, Task<byte[]>> printHeaderFooter, ProgressTask task,
+        Uri outlineUrl, Outline outline, string outputFolder, string pdfOutputPath, Action<Dictionary<Outline, int>> updatePageNumbers, CancellationToken cancellationToken)
     {
-        var tempDirectory = Path.Combine(Path.GetTempPath(), ".docfx", "pdf", "pages");
-        Directory.CreateDirectory(tempDirectory);
-
         var pages = GetPages(outline).ToArray();
         if (pages.Length == 0)
             return;
@@ -236,7 +310,7 @@ static class PdfBuilder
         // Make progress at 99% before merge PDF
         task.MaxValue = pages.Length + (pages.Length / 99.0);
 
-        await Parallel.ForEachAsync(pages, async (item, _) =>
+        await Parallel.ForEachAsync(pages, new ParallelOptions { CancellationToken = cancellationToken }, async (item, _) =>
         {
             var (url, node) = item;
             if (await printPdf(outline, url) is { } bytes)
@@ -254,6 +328,8 @@ static class PdfBuilder
 
         foreach (var (url, node) in pages)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (!pageBytes.TryGetValue(node, out var bytes))
                 continue;
 
@@ -263,8 +339,8 @@ static class PdfBuilder
 
             var key = CleanUrl(url);
             if (!pagesByUrl.TryGetValue(key, out var dests))
-                pagesByUrl[key] = dests = new();
-            dests.Add((node, document.Structure.Catalog.NamedDestinations));
+                pagesByUrl[key] = dests = [];
+            dests.Add((node, document.Structure.Catalog.GetNamedDestinations()));
 
             pageBytes[node] = bytes;
             pageNumbers[node] = numberOfPages + 1;
@@ -276,13 +352,14 @@ static class PdfBuilder
 
         var producer = $"docfx ({typeof(PdfBuilder).Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version})";
 
-        using var output = File.Create(outputPath);
+        using var output = File.Create(pdfOutputPath);
         using var builder = new PdfDocumentBuilder(output);
 
         builder.DocumentInformation = new() { Producer = producer };
         builder.Bookmarks = CreateBookmarks(outline.items);
 
         await MergePdf();
+        return;
 
         IEnumerable<(Uri url, Outline node)> GetPages(Outline outline)
         {
@@ -320,8 +397,12 @@ static class PdfBuilder
 
             foreach (var (url, node) in pages)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (!pageBytes.TryGetValue(node, out var bytes))
                     continue;
+
+                var isCoverPage = IsCoverPage(url, outputFolder, outline.pdfCoverPage);
 
                 var isTocPage = IsTocPage(url);
                 if (isTocPage)
@@ -337,14 +418,19 @@ static class PdfBuilder
                 using var document = PdfDocument.Open(bytes);
                 for (var i = 1; i <= document.NumberOfPages; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     pageNumber++;
 
                     var pageBuilder = builder.AddPage(document, i, x => CopyLink(node, x));
 
+                    if (isCoverPage)
+                        continue;
+
                     if (isTocPage)
                         continue;
 
-                    var headerFooter = await printHeaderFooter(outline, pageNumber, numberOfPages);
+                    var headerFooter = await printHeaderFooter(outline, pageNumber, numberOfPages, document.GetPage(i));
                     using var headerFooterDocument = PdfDocument.Open(headerFooter);
 
                     pageBuilder.NewContentStreamBefore();
@@ -400,6 +486,19 @@ static class PdfBuilder
         }
 
         static Uri CleanUrl(Uri url) => new UriBuilder(url) { Query = null, Fragment = null }.Uri;
+
+        static bool IsCoverPage(Uri pageUri, string baseFolder, string? pdfCoverPage)
+        {
+            Debug.Assert(Path.IsPathFullyQualified(baseFolder));
+
+            if (string.IsNullOrEmpty(pdfCoverPage))
+                return false;
+
+            string pagePath = pageUri.AbsolutePath.TrimStart('/');
+            string covePagePath = PathUtility.MakeRelativePath(baseFolder, Path.GetFullPath(Path.Combine(baseFolder, pdfCoverPage)));
+
+            return pagePath.Equals(covePagePath, GetStringComparison());
+        }
 
         static bool IsTocPage(Uri url) => url.AbsolutePath.StartsWith("/_pdftoc/");
 
@@ -523,4 +622,70 @@ static class PdfBuilder
           </div>
         </div>
         """;
+
+    /// <summary>
+    /// Gets playwright page format from PdfPig's PageSize.
+    /// </summary>
+    private static bool TryGetPlaywrightPageFormat(PageSize pageSize, out string? pageFormat)
+    {
+        // List of supported formats: https://playwright.dev/dotnet/docs/api/class-page#page-pdf
+        switch (pageSize)
+        {
+            case PageSize.Letter:
+            case PageSize.Legal:
+            case PageSize.Tabloid:
+            case PageSize.Ledger:
+            case PageSize.A0:
+            case PageSize.A1:
+            case PageSize.A2:
+            case PageSize.A3:
+            case PageSize.A4:
+            case PageSize.A5:
+            case PageSize.A6:
+                pageFormat = pageSize.ToString();
+                return true;
+
+            // Following format is not supported format by playwright.
+            // It need to use Width/Height settings.
+            case PageSize.A7:
+            case PageSize.A8:
+            case PageSize.A9:
+            case PageSize.A10:
+            case PageSize.Custom:
+            case PageSize.Executive:
+            default:
+                pageFormat = null;
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Gets page size settings from PdfPig's Page object.
+    /// </summary>
+    private static (string Width, string Height, bool Landscape) GetPageSizeSettings(Page contentPage)
+    {
+        var isLandscape = contentPage.Width > contentPage.Height;
+        var width = getMillimeter(contentPage.Width);
+        var height = getMillimeter(contentPage.Height);
+
+        return isLandscape
+            ? (height, width, true) // On Landscape mode. It need to swap width/height.
+            : (width, height, false);
+
+        // Gets millimeter string representation from `pt` value.
+        static string getMillimeter(double pt)
+        {
+            const double MillimeterPerInch = 25.4d;
+            const double Dpi = 72d; // Use Default DPI of PDF.
+            return $"{Math.Round(pt * MillimeterPerInch / Dpi)}mm";
+        }
+    }
+
+    // Gets StringComparison instance for path string.
+    private static StringComparison GetStringComparison()
+    {
+        return PathUtility.IsPathCaseInsensitive()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+    }
 }

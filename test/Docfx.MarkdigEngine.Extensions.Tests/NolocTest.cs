@@ -1,4 +1,6 @@
-﻿
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using Xunit;
 
 namespace Docfx.MarkdigEngine.Tests;
@@ -20,7 +22,7 @@ public class NolocTest
         // Markdown in noloc
         TestUtility.VerifyMarkup(
             @":::no-loc text=""*Hello*"":::",
-            @"<p>*Hello*</p>");
+            "<p>*Hello*</p>");
     }
 
     [Fact]
@@ -31,15 +33,15 @@ public class NolocTest
         TestUtility.VerifyMarkup(
             @":::no-loc text=""I am crossing\
 a line"":::",
-            @"<p>:::no-loc text=&quot;I am crossing<br />a line&quot;:::</p>");
+            "<p>:::no-loc text=&quot;I am crossing<br />a line&quot;:::</p>");
 
         // Spaces not exactly match
         TestUtility.VerifyMarkup(
             @"::: no-loc text=""test"" :::",
-            @"<p>::: no-loc text=&quot;test&quot; :::</p>");
+            "<p>::: no-loc text=&quot;test&quot; :::</p>");
 
         // Case sensitive
         TestUtility.VerifyMarkup(
-            @":::No-loc text=""test"":::", @"<p>:::No-loc text=&quot;test&quot;:::</p>");
+            @":::No-loc text=""test"":::", "<p>:::No-loc text=&quot;test&quot;:::</p>");
     }
 }

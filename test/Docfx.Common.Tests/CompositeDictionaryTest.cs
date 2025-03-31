@@ -105,9 +105,9 @@ public class CompositeDictionaryTest
 
     private sealed class C
     {
-        public Dictionary<string, object> D1 { get; } = new Dictionary<string, object>();
-        public SortedDictionary<string, int> D2 { get; } = new SortedDictionary<string, int>();
-        public SortedList<string, string> D3 { get; } = new SortedList<string, string>();
+        public Dictionary<string, object> D1 { get; } = [];
+        public SortedDictionary<string, int> D2 { get; } = [];
+        public SortedList<string, string> D3 { get; } = [];
         private CompositeDictionary _cd;
         public CompositeDictionary CD
         {

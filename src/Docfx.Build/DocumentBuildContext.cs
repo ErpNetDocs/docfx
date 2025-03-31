@@ -16,13 +16,7 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
     private readonly ConcurrentDictionary<string, TocInfo> _tableOfContents = new(FilePathComparer.OSPlatformSensitiveStringComparer);
     private readonly Task<IXRefContainerReader> _reader;
 
-    public DocumentBuildContext(string buildOutputFolder)
-        : this(buildOutputFolder, Enumerable.Empty<FileAndType>(), ImmutableArray<string>.Empty, ImmutableArray<string>.Empty, 1, Directory.GetCurrentDirectory(), string.Empty, null, null) { }
-
-    public DocumentBuildContext(string buildOutputFolder, IEnumerable<FileAndType> allSourceFiles, ImmutableArray<string> externalReferencePackages, ImmutableArray<string> xrefMaps, int maxParallelism, string baseFolder, string versionName, ApplyTemplateSettings applyTemplateSetting, string rootTocPath)
-        : this(buildOutputFolder, allSourceFiles, externalReferencePackages, xrefMaps, maxParallelism, baseFolder, versionName, applyTemplateSetting, rootTocPath, null, null) { }
-
-    public DocumentBuildContext(DocumentBuildParameters parameters)
+    public DocumentBuildContext(DocumentBuildParameters parameters, CancellationToken cancellationToken)
     {
         BuildOutputFolder = Path.Combine(Path.GetFullPath(EnvironmentContext.BaseDirectory), parameters.OutputBaseDir);
         VersionName = parameters.VersionName;
@@ -34,9 +28,10 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
 
         if (parameters.XRefMaps.Length > 0)
         {
+            // Note: `_reader` task is processed asyncronously and await is called later. So OperationCancellationException is not thrown by this lines.
             _reader = new XRefCollection(
                 from u in parameters.XRefMaps
-                select new Uri(u, UriKind.RelativeOrAbsolute)).GetReaderAsync(parameters.Files.DefaultBaseDir, parameters.MarkdownEngineParameters?.FallbackFolders);
+                select new Uri(u, UriKind.RelativeOrAbsolute)).GetReaderAsync(parameters.Files.DefaultBaseDir, parameters.MarkdownEngineParameters?.FallbackFolders, cancellationToken);
         }
         RootTocPath = parameters.RootTocPath;
 
@@ -48,15 +43,24 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
         if (!string.IsNullOrEmpty(versionDir))
         {
             versionDir = versionDir.Replace('\\', '/');
-            if (!versionDir.EndsWith("/", StringComparison.Ordinal))
+            if (!versionDir.EndsWith('/'))
             {
                 versionDir += "/";
             }
         }
         VersionFolder = versionDir;
+        CancellationToken = cancellationToken;
     }
 
-    public DocumentBuildContext(
+    #region Constructors that used by test code.
+
+    internal DocumentBuildContext(string buildOutputFolder)
+        : this(buildOutputFolder, [], [], [], 1, Directory.GetCurrentDirectory(), string.Empty, null, null) { }
+
+    private DocumentBuildContext(string buildOutputFolder, IEnumerable<FileAndType> allSourceFiles, ImmutableArray<string> externalReferencePackages, ImmutableArray<string> xrefMaps, int maxParallelism, string baseFolder, string versionName, ApplyTemplateSettings applyTemplateSetting, string rootTocPath)
+        : this(buildOutputFolder, allSourceFiles, externalReferencePackages, xrefMaps, maxParallelism, baseFolder, versionName, applyTemplateSetting, rootTocPath, null, null) { }
+
+    private DocumentBuildContext(
         string buildOutputFolder,
         IEnumerable<FileAndType> allSourceFiles,
         ImmutableArray<string> externalReferencePackages,
@@ -91,13 +95,14 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
         if (!string.IsNullOrEmpty(versionFolder))
         {
             versionFolder = versionFolder.Replace('\\', '/');
-            if (!versionFolder.EndsWith("/", StringComparison.Ordinal))
+            if (!versionFolder.EndsWith('/'))
             {
                 versionFolder += "/";
             }
         }
         VersionFolder = versionFolder;
     }
+    #endregion
 
     public string BuildOutputFolder { get; }
 
@@ -109,19 +114,19 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
 
     public ApplyTemplateSettings ApplyTemplateSettings { get; set; }
 
-    public ImmutableArray<string> ExternalReferencePackages { get; } = ImmutableArray<string>.Empty;
+    public ImmutableArray<string> ExternalReferencePackages { get; } = [];
 
     public ImmutableDictionary<string, FileAndType> AllSourceFiles { get; }
 
     public int MaxParallelism { get; }
 
-    public ConcurrentDictionary<string, string> FileMap { get; } = new ConcurrentDictionary<string, string>(FilePathComparer.OSPlatformSensitiveStringComparer);
+    public ConcurrentDictionary<string, string> FileMap { get; } = new(FilePathComparer.OSPlatformSensitiveStringComparer);
 
-    public ConcurrentDictionary<string, XRefSpec> XRefSpecMap { get; } = new ConcurrentDictionary<string, XRefSpec>();
+    public ConcurrentDictionary<string, XRefSpec> XRefSpecMap { get; } = new();
 
-    public ConcurrentDictionary<string, HashSet<string>> TocMap { get; } = new ConcurrentDictionary<string, HashSet<string>>(FilePathComparer.OSPlatformSensitiveStringComparer);
+    public ConcurrentDictionary<string, HashSet<string>> TocMap { get; } = new(FilePathComparer.OSPlatformSensitiveStringComparer);
 
-    public HashSet<string> XRef { get; } = new HashSet<string>();
+    public HashSet<string> XRef { get; } = [];
 
     public string RootTocPath { get; }
 
@@ -129,11 +134,13 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
 
     public ICustomHrefGenerator HrefGenerator { get; }
 
-    internal ConcurrentBag<ManifestItem> ManifestItems { get; } = new ConcurrentBag<ManifestItem>();
+    public CancellationToken CancellationToken { get; } = CancellationToken.None;
 
-    private ConcurrentDictionary<string, XRefSpec> ExternalXRefSpec { get; } = new ConcurrentDictionary<string, XRefSpec>();
+    internal ConcurrentBag<ManifestItem> ManifestItems { get; } = [];
 
-    private ConcurrentDictionary<string, object> UnknownUids { get; } = new ConcurrentDictionary<string, object>();
+    private ConcurrentDictionary<string, XRefSpec> ExternalXRefSpec { get; } = new();
+
+    private ConcurrentDictionary<string, object> UnknownUids { get; } = new();
 
     public void ReportExternalXRefSpec(XRefSpec spec)
     {
@@ -148,29 +155,12 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
             (uid, old) => old + spec);
     }
 
-    internal void SaveExternalXRefSpec(TextWriter writer)
-    {
-        JsonUtility.Serialize(writer, ExternalXRefSpec);
-    }
-
-    internal void LoadExternalXRefSpec(TextReader reader)
-    {
-        if (!ExternalXRefSpec.IsEmpty)
-        {
-            throw new InvalidOperationException("Cannot load after reporting external xref spec.");
-        }
-        var dict = JsonUtility.Deserialize<Dictionary<string, XRefSpec>>(reader);
-        foreach (var pair in dict)
-        {
-            ExternalXRefSpec[pair.Key] = pair.Value;
-        }
-    }
-
     public void ResolveExternalXRefSpec()
     {
-        Task.WaitAll(
+        Task.WaitAll([
             Task.Run(ResolveExternalXRefSpecForSpecs),
-            Task.Run(ResolveExternalXRefSpecForNoneSpecsAsync));
+            Task.Run(ResolveExternalXRefSpecForNoneSpecsAsync)
+        ], CancellationToken);
     }
 
     private void ResolveExternalXRefSpecForSpecs()
@@ -223,7 +213,7 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
 
         var oldSpecCount = externalXRefSpec.Count;
         var list = new List<string>();
-        using (var externalReferences = new ExternalReferencePackageCollection(ExternalReferencePackages, MaxParallelism))
+        using (var externalReferences = new ExternalReferencePackageCollection(ExternalReferencePackages, MaxParallelism, CancellationToken))
         {
             foreach (var uid in uidList)
             {
@@ -275,12 +265,7 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
         {
             throw new ArgumentException("Key cannot be empty.", nameof(key));
         }
-        if (FileMap.TryGetValue(key, out string filePath))
-        {
-            return filePath;
-        }
-
-        return null;
+        return FileMap.GetValueOrDefault(key);
     }
 
     // TODO: use this method instead of directly accessing FileMap
@@ -424,7 +409,7 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
 
         if (ExternalReferencePackages.Length > 0)
         {
-            using (var externalReferences = new ExternalReferencePackageCollection(ExternalReferencePackages, MaxParallelism))
+            using (var externalReferences = new ExternalReferencePackageCollection(ExternalReferencePackages, MaxParallelism, CancellationToken))
             {
                 xref = GetExternalReference(externalReferences, uid);
             }
@@ -452,13 +437,9 @@ public sealed class DocumentBuildContext : IDocumentBuildContext
 
     public void RegisterToc(string tocFileKey, string fileKey)
     {
-#if NET7_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(fileKey);
         ArgumentException.ThrowIfNullOrEmpty(tocFileKey);
-#else
-        if (string.IsNullOrEmpty(fileKey)) throw new ArgumentNullException(nameof(fileKey));
-        if (string.IsNullOrEmpty(tocFileKey)) throw new ArgumentNullException(nameof(tocFileKey));
-#endif
+
         TocMap.AddOrUpdate(
             fileKey,
             new HashSet<string>(FilePathComparer.OSPlatformSensitiveRelativePathComparer) { tocFileKey },

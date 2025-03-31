@@ -1,6 +1,8 @@
 # Build your docs with docfx
 
 [![NuGet](https://img.shields.io/nuget/v/docfx)](https://www.nuget.org/packages/docfx)
+[![ci](https://github.com/dotnet/docfx/actions/workflows/ci.yml/badge.svg)](https://github.com/dotnet/docfx/actions/workflows/ci.yml)
+[![nightly](https://github.com/dotnet/docfx/actions/workflows/nightly.yml/badge.svg)](https://github.com/dotnet/docfx/actions/workflows/nightly.yml)
 [![Help Wanted](https://img.shields.io/github/issues/dotnet/docfx/help-wanted?label=help-wanted)](https://github.com/dotnet/docfx/labels/help-wanted)
 
 * [Getting Started](#getting-started)
@@ -49,8 +51,8 @@ We welcome code contributions through pull requests, issues tagged as **[`help-w
 ### Prerequisites
 
 - Install [Visual Studio 2022 (Community or higher)](https://www.visualstudio.com/) and make sure you have the latest updates.
-- Install [.NET SDK](https://dotnet.microsoft.com/download/dotnet) 6.x and 8.x.
-- Install NodeJS (20.x.x).
+- Install [.NET SDK](https://dotnet.microsoft.com/download/dotnet) 8.x and 9.x.
+- Install NodeJS (22.x.x).
 
 ### Build and Test
 

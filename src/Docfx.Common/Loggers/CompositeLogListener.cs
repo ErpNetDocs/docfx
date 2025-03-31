@@ -3,10 +3,10 @@
 
 namespace Docfx.Common;
 
-public class CompositeLogListener : ILoggerListener
+public sealed class CompositeLogListener : ILoggerListener
 {
     private readonly object _sync = new();
-    private readonly List<ILoggerListener> _listeners = new();
+    private readonly List<ILoggerListener> _listeners = [];
 
     public CompositeLogListener()
     {
@@ -36,6 +36,14 @@ public class CompositeLogListener : ILoggerListener
         lock (_sync)
         {
             _listeners.AddRange(listeners);
+        }
+    }
+
+    public IEnumerable<ILoggerListener> GetAllListeners()
+    {
+        lock (_sync)
+        {
+            return _listeners.ToArray();
         }
     }
 

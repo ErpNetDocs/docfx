@@ -1,4 +1,6 @@
-﻿
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using Docfx.Common;
 using Jint;
 using Xunit;
@@ -48,8 +50,8 @@ public class JintProcessorHelperTest
 
         public string ValueB { get; set; } = "ValueB";
 
-        public Dictionary<object, object> ValueDict { get; set; } = new Dictionary<object, object> { [1] = "Value1", ["key"] = 2 };
+        public Dictionary<object, object> ValueDict { get; set; } = new() { [1] = "Value1", ["key"] = 2 };
 
-        public List<string> ValueList { get; set; } = new List<string> { "ValueA", "ValueB" };
+        public List<string> ValueList { get; set; } = ["ValueA", "ValueB"];
     }
 }

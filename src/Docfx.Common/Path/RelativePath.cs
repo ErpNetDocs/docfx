@@ -54,11 +54,10 @@ public sealed class RelativePath : IEquatable<RelativePath>
     public static bool IsRelativePath(string path)
     {
         // TODO : to merge with the PathUtility one
-        return path != null &&
-            path.Length > 0 &&
-            path[0] != '/' &&
-            path[0] != '\\' &&
-            path.IndexOfAny(PathUtility.InvalidPathChars) == -1;
+        return path is { Length: > 0 } &&
+               path[0] != '/' &&
+               path[0] != '\\' &&
+               path.IndexOfAny(PathUtility.InvalidPathChars) == -1;
     }
 
     public static RelativePath Parse(string path) => TryParseCore(path, true);
@@ -188,14 +187,7 @@ public sealed class RelativePath : IEquatable<RelativePath>
 
     public RelativePath ChangeFileName(string fileName)
     {
-#if NET7_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(fileName);
-#else
-        if (string.IsNullOrEmpty(fileName))
-        {
-            throw new ArgumentNullException(nameof(fileName));
-        }
-#endif
 
         if (fileName.Contains('\\') || fileName.Contains('/') || fileName == ".." || fileName == ".")
         {
@@ -314,7 +306,7 @@ public sealed class RelativePath : IEquatable<RelativePath>
     public override string ToString() =>
         (_isFromWorkingFolder ? NormalizedWorkingFolder : "") +
         string.Concat(Enumerable.Repeat(ParentDirectory, _parentDirectoryCount)) +
-        string.Join("/", _parts);
+        string.Join('/', _parts);
 
     /// <summary>
     /// Test whether a relative path starts with another folder relative path
@@ -455,10 +447,8 @@ public sealed class RelativePath : IEquatable<RelativePath>
 
     private IEnumerable<string> GetSubdirectories(int skip)
     {
-        if (_parts.Length <= skip)
-        {
-            throw new ArgumentOutOfRangeException(nameof(skip));
-        }
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(skip, _parts.Length);
+
         return _parts.Take(_parts.Length - skip - 1);
     }
 

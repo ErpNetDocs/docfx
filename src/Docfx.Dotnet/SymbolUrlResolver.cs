@@ -1,4 +1,7 @@
-﻿using System.Text.RegularExpressions;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 
 #nullable enable
@@ -13,11 +16,18 @@ enum SymbolUrlKind
 
 internal static partial class SymbolUrlResolver
 {
-    public static string? GetSymbolUrl(ISymbol symbol, Compilation compilation, MemberLayout memberLayout, SymbolUrlKind urlKind, HashSet<IAssemblySymbol> allAssemblies)
+    // Regex to match any character other than a word character(alphabet/numeric/underscore)
+    [GeneratedRegex(@"\W")]
+    private static partial Regex NonWordCharRegex();
+
+    public static string? GetSymbolUrl(ISymbol symbol, Compilation compilation, MemberLayout memberLayout, SymbolUrlKind urlKind, HashSet<IAssemblySymbol> allAssemblies, SymbolFilter filter)
     {
         // Reduce symbol into generic definitions
         symbol = symbol is IMethodSymbol method ? method.ReducedFrom ?? symbol : symbol;
         symbol = symbol.OriginalDefinition ?? symbol;
+
+        if (!filter.IncludeApi(symbol))
+            return null;
 
         return GetDocfxUrl(symbol, memberLayout, urlKind, allAssemblies)
             ?? GetMicrosoftLearnUrl(symbol)
@@ -47,8 +57,8 @@ internal static partial class SymbolUrlResolver
             "!" => null,
             "N" or "T" => $"{VisitorHelper.PathFriendlyId(uid)}{ext}",
             "M" or "F" or "P" or "E" => memberLayout is MemberLayout.SeparatePages && !symbol.IsEnumMember()
-                ? $"{VisitorHelper.PathFriendlyId(VisitorHelper.GetOverloadId(symbol))}{ext}#{Regex.Replace(uid, @"\W", "_")}"
-                : $"{VisitorHelper.PathFriendlyId(VisitorHelper.GetId(symbol.ContainingType))}{ext}#{Regex.Replace(uid, @"\W", "_")}",
+                ? $"{VisitorHelper.PathFriendlyId(VisitorHelper.GetOverloadId(symbol))}{ext}#{NonWordCharRegex().Replace(uid, "_")}"
+                : $"{VisitorHelper.PathFriendlyId(VisitorHelper.GetId(symbol.ContainingType))}{ext}#{NonWordCharRegex().Replace(uid, "_")}",
             _ => throw new NotSupportedException($"Unknown comment ID format '{type}'"),
         };
     }

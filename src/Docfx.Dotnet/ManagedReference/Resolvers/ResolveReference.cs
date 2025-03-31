@@ -20,14 +20,14 @@ internal class ResolveReference : IResolverPipeline
                 if (current.Type.IsPageLevel())
                 {
                     page = current;
-                    current.References = new Dictionary<string, ReferenceItem>();
+                    current.References = [];
                 }
                 else
                 {
                     page = parent;
                     current.References = null;
                 }
-                if (documentReferences != null && documentReferences.Count > 0)
+                if (documentReferences is { Count: > 0 })
                 {
                     foreach (var key in documentReferences.Keys)
                     {
@@ -56,7 +56,7 @@ internal class ResolveReference : IResolverPipeline
         {
             if (context.References.TryGetValue(key, out ReferenceItem item))
             {
-                var reference = context.References[key].Clone();
+                var reference = item.Clone();
                 page.References.Add(key, reference);
                 addingReferences.Add(reference);
             }

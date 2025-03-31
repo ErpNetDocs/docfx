@@ -11,6 +11,8 @@ namespace Docfx.Build.ApiPage;
 
 class ApiPageDocumentProcessor(IMarkdownService markdownService) : IDocumentProcessor
 {
+    private static IDeserializer deserializer = new DeserializerBuilder().WithAttemptingUnquotedStringTypeDeserialization().Build();
+
     IEnumerable<IDocumentBuildStep> IDocumentProcessor.BuildSteps => Array.Empty<IDocumentBuildStep>();
     void IDocumentProcessor.UpdateHref(FileModel model, IDocumentBuildContext context) { }
 
@@ -35,7 +37,6 @@ class ApiPageDocumentProcessor(IMarkdownService markdownService) : IDocumentProc
 
     public FileModel Load(FileAndType file, ImmutableDictionary<string, object> metadata)
     {
-        var deserializer = new DeserializerBuilder().WithAttemptingUnquotedStringTypeDeserialization().Build();
         var yml = EnvironmentContext.FileAbstractLayer.ReadAllText(file.File);
         var json = JsonSerializer.Serialize(deserializer.Deserialize<object>(yml));
         var data = JsonSerializer.Deserialize<ApiPage>(json, ApiPage.JsonSerializerOptions);
@@ -46,7 +47,7 @@ class ApiPageDocumentProcessor(IMarkdownService markdownService) : IDocumentProc
             foreach (var (key, value) in data.metadata.OrderBy(item => item.Key))
                 content[key] = value.Value;
         }
-        
+
         content["title"] = data.title;
         content["content"] = ApiPageHtmlTemplate.Render(data, Markup).ToString();
         content["yamlmime"] = "ApiPage";

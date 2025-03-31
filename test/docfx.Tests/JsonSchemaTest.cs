@@ -6,8 +6,6 @@ using Docfx.Common;
 using Docfx.DataContracts.Common;
 using Docfx.Tests.Common;
 using FluentAssertions;
-using Json.Schema;
-using Xunit.Abstractions;
 using YamlDotNet.Serialization;
 
 namespace Docfx.Tests;
@@ -15,13 +13,6 @@ namespace Docfx.Tests;
 [Collection("docfx STA")]
 public class JsonSchemaTest : TestBase
 {
-    private readonly ITestOutputHelper output;
-
-    public JsonSchemaTest(ITestOutputHelper output)
-    {
-        this.output = output;
-    }
-
     [Theory]
     [InlineData("docs/docfx.json")]
     [InlineData("samples/csharp/docfx.json")]
@@ -163,8 +154,7 @@ public class JsonSchemaTest : TestBase
                 var doc = JsonDocument.Parse(File.OpenRead(filePath), JsonSchemaUtility.DefaultJsonDocumentOptions);
                 return doc.RootElement;
             case ".yml":
-                var yaml = File.ReadAllText(filePath);
-                var yamlObject = YamlUtility.Deserialize<object>(new StringReader(yaml));
+                var yamlObject = YamlUtility.Deserialize<object>(filePath);
 
                 var serializer = new SerializerBuilder()
                                    .JsonCompatible()
@@ -175,14 +165,5 @@ public class JsonSchemaTest : TestBase
             default:
                 throw new NotSupportedException(path);
         }
-    }
-
-    private void WriteFailedResultsDetails(EvaluationResults result)
-    {
-        if (result.IsValid)
-            return;
-
-        var json = JsonSerializer.Serialize(result, JsonSerializerOptions.Default);
-        output.WriteLine(json);
     }
 }

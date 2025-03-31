@@ -8,6 +8,8 @@ namespace Docfx.Build.ConceptualDocuments;
 internal static class WordCounter
 {
     private static readonly string[] ExcludeNodeXPaths = ["//title"];
+    private static readonly System.Buffers.SearchValues<char> SpecialChars = System.Buffers.SearchValues.Create(".?!;:,()[]");
+    private static readonly char[] DelimiterChars = [' ', '\t', '\n'];
 
     public static long CountWord(string html)
     {
@@ -50,10 +52,7 @@ internal static class WordCounter
             return 0;
         }
 
-        string specialChars = ".?!;:,()[]";
-        char[] delimiterChars = [' ', '\t', '\n'];
-
-        string[] wordList = text.Split(delimiterChars, StringSplitOptions.RemoveEmptyEntries);
-        return wordList.Count(s => !s.Trim().All(specialChars.Contains));
+        string[] wordList = text.Split(DelimiterChars, StringSplitOptions.RemoveEmptyEntries);
+        return wordList.Count(static s => !s.Trim().All(static c => SpecialChars.Contains(c)));
     }
 }

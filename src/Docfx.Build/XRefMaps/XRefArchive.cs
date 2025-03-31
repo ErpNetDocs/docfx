@@ -13,7 +13,6 @@ public sealed class XRefArchive : IXRefContainer, IDisposable
     #region Consts / Fields
     public const string MajorFileName = "xrefmap.yml";
 
-    private readonly object _syncRoot = new();
     private readonly XRefArchiveMode _mode;
     private readonly ZipArchive _archive;
     private readonly List<string> _entries;
@@ -71,7 +70,7 @@ public sealed class XRefArchive : IXRefContainer, IDisposable
                     }
                     fs = File.Create(file);
                     archive = new ZipArchive(fs, ZipArchiveMode.Update);
-                    entries = new List<string>();
+                    entries = [];
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mode));
@@ -123,7 +122,7 @@ public sealed class XRefArchive : IXRefContainer, IDisposable
         }
         while (true)
         {
-            var entryName = Guid.NewGuid().ToString() + ".yml";
+            var entryName = Guid.NewGuid() + ".yml";
             if (!HasEntryCore(entryName))
             {
                 return CreateCore(entryName, map);
@@ -299,7 +298,7 @@ public sealed class XRefArchive : IXRefContainer, IDisposable
 
     bool IXRefContainer.IsEmbeddedRedirections => true;
 
-    IEnumerable<XRefMapRedirection> IXRefContainer.GetRedirections() => Enumerable.Empty<XRefMapRedirection>();
+    IEnumerable<XRefMapRedirection> IXRefContainer.GetRedirections() => [];
 
     public IXRefContainerReader GetReader()
     {

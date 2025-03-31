@@ -19,7 +19,6 @@ namespace Docfx.Build.RestApi.Tests;
 public class RestApiDocumentProcessorTest : TestBase
 {
     private readonly string _outputFolder;
-    private readonly string _inputFolder;
     private readonly FileCollection _defaultFiles;
     private readonly ApplyTemplateSettings _applyTemplateSettings;
 
@@ -29,10 +28,10 @@ public class RestApiDocumentProcessorTest : TestBase
     public RestApiDocumentProcessorTest()
     {
         _outputFolder = GetRandomFolder();
-        _inputFolder = GetRandomFolder();
+        string inputFolder = GetRandomFolder();
         _defaultFiles = new FileCollection(Directory.GetCurrentDirectory());
         _defaultFiles.Add(DocumentType.Article, new[] { "TestData/swagger/contacts.json" }, "TestData/");
-        _applyTemplateSettings = new ApplyTemplateSettings(_inputFolder, _outputFolder)
+        _applyTemplateSettings = new ApplyTemplateSettings(inputFolder, _outputFolder)
         {
             RawModelExportSettings = { Export = true }
         };
@@ -117,7 +116,7 @@ public class RestApiDocumentProcessorTest : TestBase
         Assert.Equal("<p sourcefile=\"TestData/swagger/contacts.json\" sourcestartlinenumber=\"1\">The request body <em sourcefile=\"TestData/swagger/contacts.json\" sourcestartlinenumber=\"1\">contains</em> a single property that specifies the URL of the user or contact to add as manager.</p>\n",
             item5.Parameters[2].Description);
         Assert.Equal("<p sourcefile=\"TestData/swagger/contacts.json\" sourcestartlinenumber=\"1\"><strong sourcefile=\"TestData/swagger/contacts.json\" sourcestartlinenumber=\"1\">uri</strong> description.</p>\n",
-            ((string)parameter2["description"]));
+            (string)parameter2["description"]);
         Assert.Equal("<p sourcefile=\"TestData/swagger/contacts.json\" sourcestartlinenumber=\"1\">No Content. Indicates <strong sourcefile=\"TestData/swagger/contacts.json\" sourcestartlinenumber=\"1\">success</strong>. No response body is returned.</p>\n",
             item5.Responses[0].Description);
 
@@ -155,7 +154,7 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithExternalEmbeddedReferenceShouldSucceed()
     {
         var files = new FileCollection(Directory.GetCurrentDirectory());
-        files.Add(DocumentType.Article, new[] { "TestData/swagger/contactsForExternalRef.json" }, "TestData/");
+        files.Add(DocumentType.Article, ["TestData/swagger/contactsForExternalRef.json"], "TestData/");
         BuildDocument(files);
 
         var outputRawModelPath = GetRawModelFilePath("contactsForExternalRef.json");
@@ -189,7 +188,7 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithExternalReferenceHasRefInsideShouldFail()
     {
         var files = new FileCollection(Directory.GetCurrentDirectory());
-        files.Add(DocumentType.Article, new[] { "TestData/swagger/externalRefWithRefInside.json" }, "TestData/");
+        files.Add(DocumentType.Article, ["TestData/swagger/externalRefWithRefInside.json"], "TestData/");
         var listener = TestLoggerListener.CreateLoggerListenerWithCodeFilter("InvalidInputFile");
         Logger.RegisterListener(listener);
 
@@ -228,7 +227,7 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithTagsOverwriteShouldSucceed()
     {
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.tags.md" });
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.tags.md"]);
         BuildDocument(files);
 
         {
@@ -248,7 +247,7 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithDefaultOverwriteShouldSucceed()
     {
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.default.md" });
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.default.md"]);
         BuildDocument(files);
 
         {
@@ -279,9 +278,9 @@ public class RestApiDocumentProcessorTest : TestBase
         using var listener = new TestListenerScope();
 
         var files = new FileCollection(_defaultFiles);
-        files.Add(DocumentType.Article, new[] { "TestData/swagger/tag_swagger2.json" }, "TestData/");
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.invalid.links.first.md" });
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.invalid.links.second.md" });
+        files.Add(DocumentType.Article, ["TestData/swagger/tag_swagger2.json"], "TestData/");
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.invalid.links.first.md"]);
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.invalid.links.second.md"]);
         BuildDocument(files);
 
         Assert.Equal(7, listener.Items.Count); // Additional warning for "There is no template processing document type(s): RestApi"
@@ -323,7 +322,7 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithParametersOverwriteShouldSucceed()
     {
         var files = new FileCollection(_defaultFiles);
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.parameters.md" });
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.parameters.md"]);
         BuildDocument(files);
         var outputRawModelPath = GetRawModelFilePath("contacts.json");
         Assert.True(File.Exists(outputRawModelPath));
@@ -336,7 +335,7 @@ public class RestApiDocumentProcessorTest : TestBase
         var bodyparam = parametersForUpdate.Single(p => p.Name == "bodyparam");
         Assert.Equal("<p sourcefile=\"TestData/overwrite/rest.overwrite.parameters.md\" sourcestartlinenumber=\"1\">The new bodyparam description</p>\n",
             bodyparam.Description);
-        var properties = (JObject)(((JObject)bodyparam.Metadata["schema"])["properties"]);
+        var properties = (JObject)((JObject)bodyparam.Metadata["schema"])["properties"];
         var objectType = properties["objectType"];
         Assert.Equal("string", objectType["type"]);
         Assert.Equal("this is overwrite objectType description", objectType["description"]);
@@ -365,7 +364,7 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithNotPredefinedOverwriteShouldSucceed()
     {
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.not.predefined.md" });
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.not.predefined.md"]);
         BuildDocument(files);
         {
             var outputRawModelPath = GetRawModelFilePath("contacts.json");
@@ -388,7 +387,7 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithUnmergeableOverwriteShouldSucceed()
     {
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.unmergeable.md" });
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.unmergeable.md"]);
         BuildDocument(files);
         {
             var outputRawModelPath = GetRawModelFilePath("contacts.json");
@@ -402,7 +401,7 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithRemarksOverwriteShouldSucceed()
     {
         var files = new FileCollection(_defaultFiles);
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.remarks.md" });
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.remarks.md"]);
         BuildDocument(files);
         {
             var outputRawModelPath = GetRawModelFilePath("contacts.json");
@@ -416,8 +415,8 @@ public class RestApiDocumentProcessorTest : TestBase
     public void ProcessSwaggerWithMultiUidOverwriteShouldSucceed()
     {
         var files = new FileCollection(_defaultFiles);
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.multi.uid.md" });
-        files.Add(DocumentType.Overwrite, new[] { "TestData/overwrite/rest.overwrite.unmergeable.md" });
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.multi.uid.md"]);
+        files.Add(DocumentType.Overwrite, ["TestData/overwrite/rest.overwrite.unmergeable.md"]);
         BuildDocument(files);
         {
             var outputRawModelPath = GetRawModelFilePath("contacts.json");
@@ -439,8 +438,8 @@ public class RestApiDocumentProcessorTest : TestBase
 
         var outputRawModelPath = GetRawModelFilePath("contacts.json");
         Assert.True(File.Exists(outputRawModelPath));
-        var model = JsonUtility.Deserialize<Dictionary<string, object>>(outputRawModelPath); ;
-        var systemKeys = (JArray)model[Constants.PropertyName.SystemKeys];
+        var model = JsonUtility.Deserialize<Dictionary<string, object>>(outputRawModelPath);
+        var systemKeys = ToList(model[Constants.PropertyName.SystemKeys]);
         Assert.NotEmpty(systemKeys);
         foreach (var key in model.Keys.Where(key => key[0] != '_' && !userKeys.Contains(key)))
         {
@@ -461,7 +460,7 @@ public class RestApiDocumentProcessorTest : TestBase
             }.ToImmutableDictionary()
         };
 
-        using var builder = new DocumentBuilder(LoadAssemblies(), ImmutableArray<string>.Empty);
+        using var builder = new DocumentBuilder(LoadAssemblies(), []);
         builder.Build(parameters);
     }
 
@@ -473,5 +472,12 @@ public class RestApiDocumentProcessorTest : TestBase
     private string GetRawModelFilePath(string fileName)
     {
         return Path.Combine(_outputFolder, SwaggerDirectory, Path.ChangeExtension(fileName, RawModelFileExtension));
+    }
+
+    private static List<object> ToList(object value)
+    {
+        return value is List<object> list
+            ? list
+            : ((JArray)value).Cast<object>().ToList();
     }
 }

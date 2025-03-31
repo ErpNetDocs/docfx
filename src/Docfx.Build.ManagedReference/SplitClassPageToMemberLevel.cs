@@ -21,8 +21,8 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
     private const string SplitFromPropertyName = "_splitFrom";
     private const string IsOverloadPropertyName = "_isOverload";
     private const int MaximumFileNameLength = 180;
-    private static readonly List<string> EmptyList = new();
-    private static readonly string[] EmptyArray = Array.Empty<string>();
+    private static readonly List<string> EmptyList = [];
+    private static readonly string[] EmptyArray = [];
 
     public override string Name => nameof(SplitClassPageToMemberLevel);
 
@@ -46,13 +46,9 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
             var result = SplitModelToOverloadLevel(model, modelsDict, dupeModels);
             if (result != null)
             {
-                if (treeMapping.ContainsKey(result.Uid))
+                if (!treeMapping.TryAdd(result.Uid, Tuple.Create(model.OriginalFileAndType, result.TreeItems)))
                 {
                     Logger.LogWarning($"Model with the UID {result.Uid} already exists. '{model.OriginalFileAndType?.FullPath ?? model.FileAndType.FullPath}' is ignored.");
-                }
-                else
-                {
-                    treeMapping.Add(result.Uid, Tuple.Create(model.OriginalFileAndType, result.TreeItems));
                 }
             }
             else
@@ -66,9 +62,8 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
 
         foreach (var dupeModel in dupeModels)
         {
-            if (modelsDict.TryGetValue(dupeModel.File, out var dupe))
+            if (modelsDict.Remove(dupeModel.File, out var dupe))
             {
-                modelsDict.Remove(dupeModel.File);
                 RenewDupeFileModels(dupe, newFilePaths, modelsDict);
             }
             RenewDupeFileModels(dupeModel, newFilePaths, modelsDict);
@@ -90,7 +85,7 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
 
     private static void RenewDupeFileModels(FileModel dupeModel, Dictionary<string, int> newFilePaths, Dictionary<string, FileModel> modelsDict)
     {
-        var page = dupeModel.Content as PageViewModel;
+        var page = (PageViewModel)dupeModel.Content;
         var memberType = page.Items[0]?.Type;
         var newFileName = Path.GetFileNameWithoutExtension(dupeModel.File);
 
@@ -100,7 +95,7 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
         }
 
         var newFilePath = GetUniqueFilePath(dupeModel.File, newFileName, newFilePaths, modelsDict);
-        var newModel = GenerateNewFileModel(dupeModel, page, Path.GetFileNameWithoutExtension(newFilePath), new Dictionary<string, int> { });
+        var newModel = GenerateNewFileModel(dupeModel, page, Path.GetFileNameWithoutExtension(newFilePath), []);
         modelsDict[newFilePath] = newModel;
     }
 
@@ -116,11 +111,10 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
             {
                 // new file path already exist and have suffix
                 newFileName += $"_{suffix}";
-                suffix++;
             }
             else
             {
-                // new file path already exist but doesn't have suffix (special case) 
+                // new file path already exist but doesn't have suffix (special case)
                 newFileName += "_1";
                 newFilePaths[newFilePath] = 2;
             }
@@ -186,7 +180,7 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
         // Convert children to references
         page.References = itemsToSplit.Select(ConvertToReference).Concat(page.References).ToList();
 
-        page.Items = new List<ItemViewModel> { primaryItem };
+        page.Items = [primaryItem];
         page.Metadata[SplitReferencePropertyName] = true;
         page.Metadata[SplitFromPropertyName] = true;
 
@@ -216,7 +210,7 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
             {
                 foreach (var item in overload)
                 {
-                    yield return ExtractPageViewModel(page, new List<ItemViewModel> { item });
+                    yield return ExtractPageViewModel(page, [item]);
                 }
             }
             else
@@ -302,7 +296,7 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
     {
         if (value is string text)
         {
-            return new List<string> { text };
+            return [text];
         }
 
         return GetListFromObject(value);
@@ -349,26 +343,17 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
             FullName = item.FullName,
         };
 
-        if (item.Names.Count > 0)
+        foreach (var pair in item.Names)
         {
-            foreach (var pair in item.Names)
-            {
-                reference.NameInDevLangs[pair.Key] = pair.Value;
-            }
+            reference.NameInDevLangs[pair.Key] = pair.Value;
         }
-        if (item.FullNames.Count > 0)
+        foreach (var pair in item.FullNames)
         {
-            foreach (var pair in item.FullNames)
-            {
-                reference.FullNameInDevLangs[pair.Key] = pair.Value;
-            }
+            reference.FullNameInDevLangs[pair.Key] = pair.Value;
         }
-        if (item.NamesWithType.Count > 0)
+        foreach (var pair in item.NamesWithType)
         {
-            foreach (var pair in item.NamesWithType)
-            {
-                reference.NameWithTypeInDevLangs[pair.Key] = pair.Value;
-            }
+            reference.NameWithTypeInDevLangs[pair.Key] = pair.Value;
         }
 
         return reference;
@@ -381,26 +366,17 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
         item.FullName = reference.FullName;
         item.CommentId = reference.CommentId;
 
-        if (reference.NameInDevLangs.Count > 0)
+        foreach (var pair in reference.NameInDevLangs)
         {
-            foreach (var pair in reference.NameInDevLangs)
-            {
-                item.Names[pair.Key] = pair.Value;
-            }
+            item.Names[pair.Key] = pair.Value;
         }
-        if (reference.FullNameInDevLangs.Count > 0)
+        foreach (var pair in reference.FullNameInDevLangs)
         {
-            foreach (var pair in reference.FullNameInDevLangs)
-            {
-                item.FullNames[pair.Key] = pair.Value;
-            }
+            item.FullNames[pair.Key] = pair.Value;
         }
-        if (reference.NameWithTypeInDevLangs.Count > 0)
+        foreach (var pair in reference.NameWithTypeInDevLangs)
         {
-            foreach (var pair in reference.NameWithTypeInDevLangs)
-            {
-                item.NamesWithType[pair.Key] = pair.Value;
-            }
+            item.NamesWithType[pair.Key] = pair.Value;
         }
 
         // SHOULD sync with ItemViewModel & ReferenceViewModel
@@ -634,11 +610,7 @@ public class SplitClassPageToMemberLevel : BaseDocumentBuildStep
 
     private static void AddModelToDict(FileModel model, Dictionary<string, FileModel> models, List<FileModel> dupeModels)
     {
-        if (!models.ContainsKey(model.File))
-        {
-            models[model.File] = model;
-        }
-        else
+        if (!models.TryAdd(model.File, model))
         {
             dupeModels.Add(model);
         }

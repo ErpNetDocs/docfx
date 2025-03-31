@@ -1,4 +1,7 @@
-﻿using System.Reflection.Metadata;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
@@ -15,7 +18,7 @@ namespace Docfx.Dotnet;
 
 partial class SymbolUrlResolver
 {
-    private static readonly ConditionalWeakTable<IAssemblySymbol, SourceLinkProvider?> s_sourceLinkProviders = new();
+    private static readonly ConditionalWeakTable<IAssemblySymbol, SourceLinkProvider?> s_sourceLinkProviders = [];
 
     public static string? GetPdbSourceLinkUrl(Compilation compilation, ISymbol symbol)
     {
@@ -86,8 +89,15 @@ partial class SymbolUrlResolver
         private string? TryGetSourceLinkUrl(DocumentHandle handle)
         {
             var document = _pdbReader.GetDocument(handle);
-            if (document.Name.IsNil)
+            try
+            {
+                if (document.Name.IsNil)
+                    return null;
+            }
+            catch (BadImageFormatException)
+            {
                 return null;
+            }
 
             var documentName = _pdbReader.GetString(document.Name);
             if (documentName is null)

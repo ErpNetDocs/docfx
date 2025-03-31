@@ -38,7 +38,8 @@ public class PercyTest
 
     static PercyTest()
     {
-        Microsoft.Playwright.Program.Main(["install", "chromium"]);
+        PlaywrightHelper.EnsurePlaywrightNodeJsPath();
+        Microsoft.Playwright.Program.Main(["install", "chromium", "--only-shell"]);
     }
 
     [PercyFact]
@@ -47,7 +48,8 @@ public class PercyTest
         var samplePath = $"{s_samplesDir}/seed";
         Clean(samplePath);
 
-        Process.Start("dotnet", $"build \"{s_samplesDir}/seed/dotnet/assembly/BuildFromAssembly.csproj\"").WaitForExit();
+        using var process = Process.Start("dotnet", $"build \"{s_samplesDir}/seed/dotnet/assembly/BuildFromAssembly.csproj\"");
+        await process.WaitForExitAsync();
 
         var docfxPath = Path.GetFullPath(OperatingSystem.IsWindows() ? "docfx.exe" : "docfx");
         Assert.Equal(0, Exec(docfxPath, $"metadata {samplePath}/docfx.json"));
@@ -57,11 +59,11 @@ public class PercyTest
         var _ = Task.Run(() => Program.Main(["serve", "--port", $"{port}", $"{samplePath}/_site"]))
                     .ContinueWith(x =>
                     {
-                        Logger.LogError("Failed to run `dotnet serve` command. " + x.Exception.ToString());
+                        Logger.LogError("Failed to run `dotnet serve` command. " + x.Exception);
                     }, TaskContinuationOptions.OnlyOnFaulted);
 
         // Wait until web server started.
-        bool isStarted = SpinWait.SpinUntil(() => { Thread.Sleep(100); return IsActiveLocalTcpPort(port); }, TimeSpan.FromSeconds(10));
+        SpinWait.SpinUntil(() => { Thread.Sleep(100); return IsActiveLocalTcpPort(port); }, TimeSpan.FromSeconds(10));
 
         using var playwright = await Playwright.CreateAsync();
         var browser = await playwright.Chromium.LaunchAsync();
@@ -117,7 +119,7 @@ public class PercyTest
         psi.EnvironmentVariables.Add("DOCFX_SOURCE_BRANCH_NAME", "main");
         if (workingDirectory != null)
             psi.WorkingDirectory = Path.GetFullPath(workingDirectory);
-        var process = Process.Start(psi);
+        using var process = Process.Start(psi);
         process.WaitForExit();
         return process.ExitCode;
     }

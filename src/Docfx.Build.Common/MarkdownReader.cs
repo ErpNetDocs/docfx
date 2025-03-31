@@ -13,7 +13,7 @@ namespace Docfx.Build.Common;
 
 public class MarkdownReader
 {
-    private static readonly ImmutableList<string> RequiredProperties = ImmutableList.Create(Constants.PropertyName.Uid);
+    private static readonly ImmutableList<string> RequiredProperties = [Constants.PropertyName.Uid];
 
     public static IEnumerable<OverwriteDocumentModel> ReadMarkdownAsOverwrite(IHostService host, FileAndType ft)
     {
@@ -129,7 +129,7 @@ public class MarkdownReader
         if (notExistsKeys.Count > 0)
         {
             message =
-                $"Required properties {{{{{string.Join(",", notExistsKeys)}}}}} are not set. Note that keys are case sensitive.";
+                $"Required properties {{{{{string.Join(',', notExistsKeys)}}}}} are not set. Note that keys are case sensitive.";
             return false;
         }
 

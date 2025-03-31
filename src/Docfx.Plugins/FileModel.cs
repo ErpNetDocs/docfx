@@ -35,7 +35,7 @@ public sealed class FileModel
 
     public FileAndType FileAndType { get; private set; }
 
-    public FileAndType OriginalFileAndType { get; private set; }
+    public FileAndType OriginalFileAndType { get; }
 
     public object Content { get; set; }
 
@@ -67,9 +67,9 @@ public sealed class FileModel
 
     public string Key { get; }
 
-    public ImmutableHashSet<string> LinkToFiles { get; set; } = ImmutableHashSet<string>.Empty;
+    public ImmutableHashSet<string> LinkToFiles { get; set; } = [];
 
-    public ImmutableHashSet<string> LinkToUids { get; set; } = ImmutableHashSet<string>.Empty;
+    public ImmutableHashSet<string> LinkToUids { get; set; } = [];
 
     public ImmutableDictionary<string, ImmutableList<LinkSourceInfo>> UidLinkSources { get; set; } = ImmutableDictionary<string, ImmutableList<LinkSourceInfo>>.Empty;
 
@@ -85,5 +85,5 @@ public sealed class FileModel
 
     public string DocumentType { get; set; }
 
-    public ImmutableArray<UidDefinition> Uids { get; set; } = ImmutableArray<UidDefinition>.Empty;
+    public ImmutableArray<UidDefinition> Uids { get; set; } = [];
 }

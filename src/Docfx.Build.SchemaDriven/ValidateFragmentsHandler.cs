@@ -10,13 +10,13 @@ namespace Docfx.Build.SchemaDriven;
 
 public class ValidateFragmentsHandler : ISchemaFragmentsHandler
 {
-    private readonly Dictionary<string, bool> _isMissingUidsLogged = new();
+    private readonly Dictionary<string, bool> _isMissingUidsLogged = [];
 
     public void HandleUid(string uidKey, YamlMappingNode node, Dictionary<string, MarkdownFragment> fragments, BaseSchema schema, string oPathPrefix, string uid)
     {
-        if (!fragments.ContainsKey(uid) && !_isMissingUidsLogged.ContainsKey(uid))
+        if (!fragments.ContainsKey(uid))
         {
-            _isMissingUidsLogged[uid] = false;
+            _isMissingUidsLogged.TryAdd(uid, false);
         }
     }
 
@@ -37,9 +37,10 @@ public class ValidateFragmentsHandler : ISchemaFragmentsHandler
             return;
         }
         var opath = oPathPrefix + propertyKey;
-        if (!fragments[uid].Properties.ContainsKey(opath))
+        var fragment = fragments[uid];
+        if (!fragment.Properties.ContainsKey(opath))
         {
-            if (string.IsNullOrEmpty(oPathPrefix) && fragments[uid].Metadata?.ContainsKey(opath) == true)
+            if (string.IsNullOrEmpty(oPathPrefix) && fragment.Metadata?.ContainsKey(opath) == true)
             {
                 return;
             }

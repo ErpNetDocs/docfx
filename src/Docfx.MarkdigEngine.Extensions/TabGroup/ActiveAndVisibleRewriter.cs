@@ -10,7 +10,7 @@ namespace Docfx.MarkdigEngine.Extensions;
 public class ActiveAndVisibleRewriter : IMarkdownObjectRewriter
 {
     private readonly MarkdownContext _context;
-    private readonly List<string[]> tabSelectionInfo = new();
+    private readonly List<string[]> tabSelectionInfo = [];
 
     public ActiveAndVisibleRewriter(MarkdownContext context)
     {
@@ -36,7 +36,7 @@ public class ActiveAndVisibleRewriter : IMarkdownObjectRewriter
             {
                 _context.LogWarning(
                     "invalid-tab-group",
-                    $"Duplicate tab id: {string.Join(",", idAndCountList.Where(g => g.Item2 > 1))}.",
+                    $"Duplicate tab id: {string.Join(',', idAndCountList.Where(g => g.Item2 > 1))}.",
                     block);
             }
             var active = GetTabActive(block, tabSelectionInfo, items, firstVisibleTab, idAndCountList);

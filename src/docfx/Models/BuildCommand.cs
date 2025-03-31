@@ -34,7 +34,7 @@ internal class BuildCommand : Command<BuildCommandOptions>
         // base directory for content from command line is current directory
         // e.g. C:\folder1>docfx build folder2\docfx.json --content "*.cs"
         // for `--content "*.cs*`, base directory should be `C:\folder1`
-        string optionsBaseDirectory = Directory.GetCurrentDirectory();
+        // hence GetFullPath used below
 
         // Override config file with options from command line
         if (options.Templates != null && options.Templates.Any())
@@ -56,7 +56,7 @@ internal class BuildCommand : Command<BuildCommandOptions>
         {
             config.Xref =
                 new ListWithStringFallback(
-                    (config.Xref ?? new ListWithStringFallback())
+                    (config.Xref ?? [])
                     .Concat(options.XRefMaps)
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct());
@@ -100,7 +100,7 @@ internal class BuildCommand : Command<BuildCommandOptions>
         {
             if (options.Metadata != null)
             {
-                config.GlobalMetadata ??= new();
+                config.GlobalMetadata ??= [];
                 foreach (var metadata in options.Metadata)
                 {
                     var (key, value) = ParseMetadata(metadata);

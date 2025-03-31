@@ -26,7 +26,7 @@ public class TemplateProcessorUnitTest : TestBase
     [Fact]
     public void TestXrefWithTemplate()
     {
-        CreateFile("partials/xref.html.tmpl", @"<h2>{{uid}}</h2><p>{{summary}}</p>{{#isGood}}Good!{{/isGood}}", _templateFolder);
+        CreateFile("partials/xref.html.tmpl", "<h2>{{uid}}</h2><p>{{summary}}</p>{{#isGood}}Good!{{/isGood}}", _templateFolder);
         CreateFile("index.html.tmpl", @"
 <xref uid=""{{reference}}"" template=""partials/xref.html.tmpl"" />
 ", _templateFolder);
@@ -61,6 +61,6 @@ public class TemplateProcessorUnitTest : TestBase
             LocalPathFromRoot = fileName,
             Content = content,
         };
-        return processor.Process(new List<InternalManifestItem> { inputItem }, new ApplyTemplateSettings(_inputFolder, _outputFolder))[0];
+        return processor.Process([inputItem], new ApplyTemplateSettings(_inputFolder, _outputFolder))[0];
     }
 }

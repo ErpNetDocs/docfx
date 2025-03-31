@@ -27,6 +27,7 @@ internal class MetadataCommand : Command<MetadataCommandOptions>
             item.ShouldSkipMarkup |= options.ShouldSkipMarkup;
             item.DisableGitFeatures |= options.DisableGitFeatures;
             item.DisableDefaultFilter |= options.DisableDefaultFilter;
+            item.NoRestore |= options.NoRestore;
             item.CategoryLayout = options.CategoryLayout ?? item.CategoryLayout;
             item.NamespaceLayout = options.NamespaceLayout ?? item.NamespaceLayout;
             item.MemberLayout = options.MemberLayout ?? item.MemberLayout;
@@ -68,7 +69,7 @@ internal class MetadataCommand : Command<MetadataCommandOptions>
                 if (index > -1)
                 {
                     // Latter one overwrites former one
-                    properties[pair.Substring(0, index)] = pair.Substring(index + 1, pair.Length - index - 1);
+                    properties[pair.Substring(0, index)] = pair.Substring(index + 1);
                 }
             }
         }

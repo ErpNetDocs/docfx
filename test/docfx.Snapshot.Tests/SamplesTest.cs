@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -11,6 +12,8 @@ using Docfx.Dotnet;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Actions;
 using UglyToad.PdfPig.Annotations;
+using UglyToad.PdfPig.Content;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 using UglyToad.PdfPig.Outline;
 
 namespace Docfx.Tests;
@@ -37,6 +40,8 @@ public class SamplesTest : IDisposable
     {
         public SamplesFactAttribute()
         {
+            // When target framework is changed.
+            // It need to modify TargetFrameworks property of `docfx.Snapshot.Tests.csproj`
 #if !NET8_0
             Skip = "Skip by target framework";
 #endif
@@ -49,9 +54,11 @@ public class SamplesTest : IDisposable
         var samplePath = $"{s_samplesDir}/seed";
         Clean(samplePath);
 
-        Process.Start("dotnet", $"build \"{s_samplesDir}/seed/dotnet/assembly/BuildFromAssembly.csproj\"").WaitForExit();
+        using var process = Process.Start("dotnet", $"build \"{s_samplesDir}/seed/dotnet/assembly/BuildFromAssembly.csproj\"");
+        await process.WaitForExitAsync();
+        VerifyExitCode(process);
 
-        if (Debugger.IsAttached)
+        if (Debugger.IsAttached || IsWslRemoteTest())
         {
             Environment.SetEnvironmentVariable("DOCFX_SOURCE_BRANCH_NAME", "main");
             Assert.Equal(0, Program.Main([$"{samplePath}/docfx.json"]));
@@ -77,8 +84,8 @@ public class SamplesTest : IDisposable
                 {
                     p.Number,
                     p.NumberOfImages,
-                    p.Text,
-                    Links = p.ExperimentalAccess.GetAnnotations().Select(ToLink).ToArray(),
+                    Text = ExtractText(p),
+                    Links = p.GetAnnotations().Select(ToLink).ToArray(),
                 }).ToArray(),
                 Bookmarks = document.TryGetBookmarks(out var bookmarks) ? ToBookmarks(bookmarks.Roots) : null,
             };
@@ -115,7 +122,8 @@ public class SamplesTest : IDisposable
         var outputPath = nameof(SeedMarkdown);
         Clean(samplePath);
 
-        Program.Main(["metadata", $"{samplePath}/docfx.json", "--outputFormat", "markdown", "--output", outputPath]);
+        var exitCode = Program.Main(["metadata", $"{samplePath}/docfx.json", "--outputFormat", "markdown", "--output", outputPath]);
+        Assert.Equal(0, exitCode);
 
         await VerifyDirectory(outputPath).AutoVerify(includeBuildServer: false);
     }
@@ -148,10 +156,14 @@ public class SamplesTest : IDisposable
         Clean(samplePath);
 
 #if DEBUG
-        Process.Start("dotnet", $"build \"{samplePath}/build\"").WaitForExit();
+        using var process = Process.Start("dotnet", $"build \"{samplePath}/build\"");
+        process.WaitForExit();
+        VerifyExitCode(process);
         Assert.Equal(0, Exec("dotnet", "run --no-build --project build", workingDirectory: samplePath));
 #else
-        Process.Start("dotnet", $"build -c Release \"{samplePath}/build\"").WaitForExit();
+        using var process = Process.Start("dotnet", $"build -c Release \"{samplePath}/build\"");
+        process.WaitForExit();
+        VerifyExitCode(process);
         Assert.Equal(0, Exec("dotnet", "run --no-build -c Release --project build", workingDirectory: samplePath));
 #endif
 
@@ -164,7 +176,7 @@ public class SamplesTest : IDisposable
         psi.EnvironmentVariables.Add("DOCFX_SOURCE_BRANCH_NAME", "main");
         if (workingDirectory != null)
             psi.WorkingDirectory = Path.GetFullPath(workingDirectory);
-        var process = Process.Start(psi);
+        using var process = Process.Start(psi);
         process.WaitForExit();
         return process.ExitCode;
     }
@@ -201,5 +213,49 @@ public class SamplesTest : IDisposable
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             }));
         }
+    }
+
+    private static string ExtractText(Page page)
+    {
+        // Gets PDF text content
+        var text = ContentOrderTextExtractor.GetText(page, new ContentOrderTextExtractor.Options { ReplaceWhitespaceWithSpace = true });
+
+        // string.Normalize is not works when using `Globalization Invariant Mode`.
+        StringBuilder sb = new(text);
+
+        // Normalize known ligature chars. (Note: `string.Normalize` is not works when using `Globalization Invariant Mode`)
+        sb.Replace("ﬀ", "ff");
+        sb.Replace("ﬃ", "ffi");
+        sb.Replace("ﬂ", "fl");
+        sb.Replace("ﬁ", "fi");
+
+        // Normalize newline char.
+        sb.Replace("\r\n", "\n");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Returns true if running on WSL and executed on Visual Studio Remote Testing.
+    /// </summary>
+    private static bool IsWslRemoteTest([CallerFilePath] string callerFilePath = "")
+    {
+        return Environment.GetEnvironmentVariable("WSLENV") != null
+            && callerFilePath.Contains('\\', StringComparison.Ordinal); // Contains `\` when build on windows environment.
+    }
+
+    private static void VerifyExitCode(Process process)
+    {
+        if (!process.HasExited)
+            throw new InvalidOperationException("Process is not exited yet.");
+
+        // Gets exit code before closing process.
+        var exitCode = process.ExitCode;
+
+        // Close process to flush stdout/stderr logs.
+        process.Close();
+
+        // Assert exit code
+        Assert.Equal(0, exitCode);
     }
 }

@@ -110,17 +110,17 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
         { "vb", new string[] {"vbnet", "vbscript", "bas", "vbs", "vba" } }
     };
 
-    private static readonly Dictionary<string, string> s_languageByFileExtension = new();
+    private static readonly Dictionary<string, string> s_languageByFileExtension = [];
 
     // If we ever come across a language that has not been defined above, we shouldn't break the build.
     // We can at least try it with a default language, "C#" for now, and try and resolve the code snippet.
-    private static readonly HashSet<CodeSnippetExtractor> s_defaultExtractors = new();
+    private static readonly HashSet<CodeSnippetExtractor> s_defaultExtractors = [];
 
     // Language names and aliases follow http://highlightjs.readthedocs.org/en/latest/css-classes-reference.html#language-names-and-aliases
     // Language file extensions follow https://github.com/github/linguist/blob/master/lib/linguist/languages.yml
     // Currently only supports parts of the language names, aliases and extensions
     // Later we can move the repository's supported/custom language names, aliases, extensions and corresponding comments regexes to docfx build configuration
-    private static readonly Dictionary<string, HashSet<CodeSnippetExtractor>> s_languageExtractors = new();
+    private static readonly Dictionary<string, HashSet<CodeSnippetExtractor>> s_languageExtractors = [];
 
     private readonly MarkdownContext _context;
 
@@ -155,14 +155,14 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
         {
             foreach (var (language, aliases) in s_languageAlias.Select(i => (i.Key, i.Value)))
             {
-                Debug.Assert(!language.StartsWith("."));
+                Debug.Assert(!language.StartsWith('.'));
 
                 s_languageByFileExtension.Add(language, language);
                 s_languageByFileExtension.Add($".{language}", language);
 
                 foreach (var alias in aliases)
                 {
-                    Debug.Assert(!alias.StartsWith("."));
+                    Debug.Assert(!alias.StartsWith('.'));
 
                     s_languageByFileExtension.Add(alias, language);
                     s_languageByFileExtension.Add($".{alias}", language);
@@ -198,7 +198,7 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
             }
             else
             {
-                s_languageExtractors[language] = new HashSet<CodeSnippetExtractor> { extractor };
+                s_languageExtractors[language] = [extractor];
             }
         }
     }
@@ -210,7 +210,7 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
 
     public static string GetLanguageByFileExtension(string extension)
     {
-        return s_languageByFileExtension.TryGetValue(extension, out var result) ? result : null;
+        return s_languageByFileExtension.GetValueOrDefault(extension);
     }
 
     protected override void Write(HtmlRenderer renderer, CodeSnippet codeSnippet)
@@ -233,19 +233,19 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
 
     private string GetNoteBookContent(string content, string tagName, CodeSnippet obj)
     {
-        JObject contentObject = null;
+        JObject contentObject;
         try
         {
             contentObject = JObject.Parse(content);
         }
         catch (JsonReaderException ex)
         {
-            _context.LogError("not-notebook-content", "Not a valid Notebook. " + ex.ToString(), obj);
+            _context.LogError("not-notebook-content", "Not a valid Notebook. " + ex, obj);
             return string.Empty;
         }
 
         string sourceJsonPath = $"$..cells[?(@.metadata.name=='{tagName}')].source";
-        JToken sourceObject = null;
+        JToken sourceObject;
         try
         {
             sourceObject = contentObject.SelectToken(sourceJsonPath);
@@ -299,22 +299,22 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
             var tagWithPrefix = TagPrefix + obj.TagName;
             foreach (var extractor in extractors)
             {
-                HashSet<int> tagLines = new();
+                HashSet<int> tagLines = [];
                 var tagToCodeRangeMapping = extractor.GetAllTags(allLines, ref tagLines);
                 if (tagToCodeRangeMapping.TryGetValue(obj.TagName, out var cr)
                     || tagToCodeRangeMapping.TryGetValue(tagWithPrefix, out cr))
                 {
-                    return GetCodeLines(allLines, obj, new List<CodeRange> { cr }, tagLines);
+                    return GetCodeLines(allLines, obj, [cr], tagLines);
                 }
             }
         }
         else if (obj.BookMarkRange != null)
         {
-            return GetCodeLines(allLines, obj, new List<CodeRange> { obj.BookMarkRange });
+            return GetCodeLines(allLines, obj, [obj.BookMarkRange]);
         }
         else if (obj.StartEndRange != null)
         {
-            return GetCodeLines(allLines, obj, new List<CodeRange> { obj.StartEndRange });
+            return GetCodeLines(allLines, obj, [obj.StartEndRange]);
         }
         else if (obj.CodeRanges != null)
         {
@@ -322,7 +322,7 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
         }
         else
         {
-            return GetCodeLines(allLines, obj, new List<CodeRange> { new() { Start = 0, End = allLines.Length } });
+            return GetCodeLines(allLines, obj, [new() { Start = 0, End = allLines.Length }]);
         }
 
         return string.Empty;
@@ -340,7 +340,7 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
 
     private static string GetCodeLines(string[] allLines, CodeSnippet obj, List<CodeRange> codeRanges, HashSet<int> ignoreLines = null)
     {
-        List<string> codeLines = new();
+        List<string> codeLines = [];
         StringBuilder showCode = new();
         int commonIndent = int.MaxValue;
 
@@ -418,49 +418,6 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
         return sb.ToString();
     }
 
-    private static bool IsLineInRange(int lineNumber, List<CodeRange> allCodeRanges)
-    {
-        if (allCodeRanges.Count == 0) return true;
-
-        for (int rangeNumber = 0; rangeNumber < allCodeRanges.Count; rangeNumber++)
-        {
-            var range = allCodeRanges[rangeNumber];
-            if (lineNumber >= range.Start && lineNumber <= range.End)
-                return true;
-        }
-
-        return false;
-    }
-
-    private static int GetTagLineNumber(string[] lines, string tagLine)
-    {
-        for (int index = 0; index < lines.Length; index++)
-        {
-            var line = lines[index];
-            var targetColumn = 0;
-            var match = true;
-
-            for (int column = 0; column < line.Length; column++)
-            {
-                var c = line[column];
-                if (c != ' ')
-                {
-                    if (targetColumn >= tagLine.Length || tagLine[targetColumn] != char.ToUpper(c))
-                    {
-                        match = false;
-                        break;
-                    }
-
-                    targetColumn++;
-                }
-            }
-
-            if (match && targetColumn == tagLine.Length) return index + 1;
-        }
-
-        return -1;
-    }
-
     private string GetWarning()
     {
         var warningTitle = _context.GetToken(WarningTitleId) ?? DefaultWarningTitle;
@@ -487,7 +444,7 @@ public class HtmlCodeSnippetRenderer : HtmlObjectRenderer<CodeSnippet>
                 return false;
             }
 
-            codeRanges ??= new List<CodeRange>();
+            codeRanges ??= [];
 
             codeRanges.Add(codeRange);
         }

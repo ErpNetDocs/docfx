@@ -23,16 +23,16 @@ public static class TestUtility
         Dictionary<string, string> notes = null,
         PlantUmlOptions plantUml = null)
     {
-        errors ??= Array.Empty<string>();
-        tokens ??= new Dictionary<string, string>();
-        files ??= new Dictionary<string, string>();
+        errors ??= [];
+        tokens ??= [];
+        files ??= [];
         optionalExtensions ??= [];
 
         var actualErrors = new List<string>();
         var actualDependencies = new HashSet<string>();
 
         var markdownContext = new MarkdownContext(
-            getToken: key => tokens.TryGetValue(key, out var value) ? value : null,
+            getToken: key => tokens.GetValueOrDefault(key),
             logInfo: (a, b, c, d) => { },
             logSuggestion: Log("suggestion"),
             logWarning: Log("warning"),

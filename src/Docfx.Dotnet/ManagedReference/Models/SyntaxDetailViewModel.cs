@@ -22,7 +22,7 @@ public class SyntaxDetailViewModel
     [ExtensibleMember(Constants.ExtensionMemberPrefix.Content)]
     [Newtonsoft.Json.JsonIgnore]
     [System.Text.Json.Serialization.JsonIgnore]
-    public SortedList<string, string> Contents { get; set; } = new SortedList<string, string>();
+    public SortedList<string, string> Contents { get; set; } = [];
 
     [YamlIgnore]
     [Newtonsoft.Json.JsonIgnore]
@@ -89,11 +89,21 @@ public class SyntaxDetailViewModel
     [YamlIgnore]
     [Newtonsoft.Json.JsonExtensionData]
     [System.Text.Json.Serialization.JsonExtensionData]
+    [System.Text.Json.Serialization.JsonInclude]
     [UniqueIdentityReferenceIgnore]
     [MarkdownContentIgnore]
-    public IDictionary<string, object> ExtensionData =>
-        CompositeDictionary
+    public IDictionary<string, object> ExtensionData
+    {
+        get
+        {
+            return CompositeDictionary
             .CreateBuilder()
             .Add(Constants.ExtensionMemberPrefix.Content, Contents, JTokenConverter.Convert<string>)
             .Create();
+        }
+        private init
+        {
+            // init or getter is required for deserialize data with System.Text.Json.
+        }
+    }
 }

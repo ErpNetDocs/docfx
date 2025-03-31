@@ -51,21 +51,21 @@ public class ProcessContext : IProcessContext
         _model = fm;
         OriginalFileAndType = fm.OriginalFileAndType;
         FileAndType = fm.FileAndType;
-        Uids = new List<UidDefinition>();
-        UidLinkSources = new Dictionary<string, List<LinkSourceInfo>>();
-        FileLinkSources = new Dictionary<string, List<LinkSourceInfo>>();
-        Dependency = new HashSet<string>();
-        XRefSpecs = new List<XRefSpec>();
-        ExternalXRefSpecs = new List<XRefSpec>();
+        Uids = [];
+        UidLinkSources = [];
+        FileLinkSources = [];
+        Dependency = [];
+        XRefSpecs = [];
+        ExternalXRefSpecs = [];
         Metadata = new Dictionary<string, object>();
-        if (((IDictionary<string, object>)(fm.Properties)).TryGetValue("PathProperties", out var properties))
+        if (((IDictionary<string, object>)fm.Properties).TryGetValue("PathProperties", out var properties))
         {
             var pathProperties = properties as Dictionary<string, Dictionary<string, object>>;
             PathProperties = pathProperties ?? throw new ArgumentException($"PathProperties is expecting a dictionary however is a {pathProperties.GetType()}");
         }
         else
         {
-            fm.Properties.PathProperties = PathProperties = new Dictionary<string, Dictionary<string, object>>();
+            fm.Properties.PathProperties = PathProperties = [];
         }
 
         Host = hs;

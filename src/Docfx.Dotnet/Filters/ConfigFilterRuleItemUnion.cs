@@ -44,6 +44,7 @@ internal class ConfigFilterRuleItemUnion
         }
     }
 
+    [YamlIgnore]
     public ConfigFilterRuleItem Rule
     {
         get

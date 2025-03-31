@@ -1,4 +1,7 @@
-﻿using System.Collections.Immutable;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using System.Collections.Immutable;
 using Docfx.DataContracts.ManagedReference;
 using Microsoft.CodeAnalysis;
 using CS = Microsoft.CodeAnalysis.CSharp;
@@ -9,10 +12,19 @@ namespace Docfx.Dotnet;
 internal static partial class SymbolFormatter
 {
     private static readonly SymbolDisplayFormat s_nameFormat = new(
-        memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeExplicitInterface,
-        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
-        parameterOptions: SymbolDisplayParameterOptions.IncludeType,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.AllowDefaultLiteral | SymbolDisplayMiscellaneousOptions.UseSpecialTypes,
+        memberOptions:
+            SymbolDisplayMemberOptions.IncludeParameters |
+            SymbolDisplayMemberOptions.IncludeExplicitInterface,
+        genericsOptions:
+            SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        parameterOptions:
+            SymbolDisplayParameterOptions.IncludeType,
+        miscellaneousOptions:
+            SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier |
+            SymbolDisplayMiscellaneousOptions.AllowDefaultLiteral |
+            (ExtractMetadataConfig.UseClrTypeNames
+                ? SymbolDisplayMiscellaneousOptions.None
+                : SymbolDisplayMiscellaneousOptions.UseSpecialTypes),
         extensionMethodStyle: SymbolDisplayExtensionMethodStyle.StaticMethod);
 
     private static readonly SymbolDisplayFormat s_nameWithTypeFormat = s_nameFormat
@@ -96,12 +108,12 @@ internal static partial class SymbolFormatter
         }
         catch (InvalidOperationException)
         {
-            return ImmutableArray<SymbolDisplayPart>.Empty;
+            return [];
         }
     }
 
     public static List<LinkItem> ToLinkItems(this ImmutableArray<SymbolDisplayPart> parts,
-        Compilation compilation, MemberLayout memberLayout, HashSet<IAssemblySymbol> allAssemblies, bool overload, SymbolUrlKind urlKind = SymbolUrlKind.Html)
+        Compilation compilation, MemberLayout memberLayout, HashSet<IAssemblySymbol> allAssemblies, bool overload, SymbolFilter filter, SymbolUrlKind urlKind = SymbolUrlKind.Html)
     {
         var result = new List<LinkItem>();
         foreach (var part in parts)
@@ -119,14 +131,14 @@ internal static partial class SymbolFormatter
             if (symbol is null || part.Kind is SymbolDisplayPartKind.TypeParameterName)
                 return new() { DisplayName = part.ToString() };
 
-            if (symbol is INamedTypeSymbol type && type.IsGenericType)
+            if (symbol is INamedTypeSymbol { IsGenericType: true } type)
                 symbol = type.ConstructedFrom;
 
             return new()
             {
                 Name = overload ? VisitorHelper.GetOverloadId(symbol) : VisitorHelper.GetId(symbol),
                 DisplayName = part.ToString(),
-                Href = SymbolUrlResolver.GetSymbolUrl(symbol, compilation, memberLayout, urlKind, allAssemblies),
+                Href = SymbolUrlResolver.GetSymbolUrl(symbol, compilation, memberLayout, urlKind, allAssemblies, filter),
                 IsExternalPath = symbol.IsExtern || symbol.DeclaringSyntaxReferences.Length == 0,
             };
         }
@@ -156,7 +168,7 @@ internal static partial class SymbolFormatter
         }
         catch
         {
-            return ImmutableArray<SymbolDisplayPart>.Empty;
+            return [];
         }
 
         static ImmutableArray<SymbolDisplayPart> GetCastOperatorOverloadDisplayParts(ImmutableArray<SymbolDisplayPart> parts)

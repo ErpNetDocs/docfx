@@ -78,23 +78,18 @@ public class TemplateManager
 
     public void ProcessTheme(string outputDirectory, bool overwrite)
     {
-        if (_themes != null && _themes.Count > 0)
+        if (_themes is { Count: > 0 })
         {
             TryExportResourceFiles(_themes, outputDirectory, overwrite);
             Logger.LogInfo($"Theme(s) {_themes.ToDelimitedString()} applied.");
         }
     }
 
-    private bool TryExportResourceFiles(IEnumerable<string> resourceNames, string outputDirectory, bool overwrite, string? regexFilter = null)
+    private bool TryExportResourceFiles(List<string> resourceNames, string outputDirectory, bool overwrite, string? regexFilter = null)
     {
-#if NET7_0_OR_GREATER
         ArgumentException.ThrowIfNullOrEmpty(outputDirectory);
-#else
-        if (string.IsNullOrEmpty(outputDirectory))
-            throw new ArgumentNullException(nameof(outputDirectory));
-#endif
 
-        if (!resourceNames.Any())
+        if (resourceNames.Count == 0)
             return false;
 
         bool isEmpty = true;
@@ -129,7 +124,7 @@ public class TemplateManager
         try
         {
             var subfolder = Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrEmpty(subfolder) && !Directory.Exists(subfolder))
+            if (!string.IsNullOrEmpty(subfolder))
             {
                 Directory.CreateDirectory(subfolder);
             }

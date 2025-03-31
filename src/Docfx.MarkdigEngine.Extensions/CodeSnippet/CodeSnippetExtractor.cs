@@ -7,9 +7,11 @@ using Markdig.Helpers;
 
 namespace Docfx.MarkdigEngine.Extensions;
 
-public class CodeSnippetExtractor
+public partial class CodeSnippetExtractor
 {
-    private static readonly Regex TagnameFormat = new(@"^[\w\.-]+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    [GeneratedRegex(@"^[\w\.-]+$", RegexOptions.IgnoreCase)]
+    private static partial Regex TagnameFormat();
+
     private readonly string StartLineTemplate;
     private readonly string EndLineTemplate;
     private readonly bool IsEndLineContainsTagName;
@@ -39,12 +41,12 @@ public class CodeSnippetExtractor
                     tagName = tagStack.Count > 0 ? tagStack.Pop() : string.Empty;
                 }
 
-                if (result.ContainsKey(tagName))
+                if (result.TryGetValue(tagName, out var range))
                 {
-                    if (result[tagName].End == 0)
+                    if (range.End == 0)
                     {
                         // we meet the first end tag, ignore the following ones
-                        result[tagName].End = index;
+                        range.End = index;
                     }
                 }
 
@@ -68,7 +70,7 @@ public class CodeSnippetExtractor
         tagName = string.Empty;
         if (string.IsNullOrEmpty(line) || string.IsNullOrEmpty(template)) return false;
 
-        var splittedTemplate = template.Split(new[] { TagNamePlaceHolder }, StringSplitOptions.None);
+        var splittedTemplate = template.Split(TagNamePlaceHolder);
         var beforeTagName = splittedTemplate[0];
         var afterTagName = splittedTemplate.Length == 2 ? splittedTemplate[1] : string.Empty;
 
@@ -112,6 +114,6 @@ public class CodeSnippetExtractor
         if (index != afterTagName.Length) return false;
         while (column < line.Length && CharHelper.IsWhitespace(line[column])) column++;
 
-        return column == line.Length && (!containTagName || TagnameFormat.IsMatch(tagName));
+        return column == line.Length && (!containTagName || TagnameFormat().IsMatch(tagName));
     }
 }

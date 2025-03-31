@@ -6,9 +6,9 @@ using Xunit;
 
 namespace Docfx.Tests.Common;
 
-public class TestBase : IClassFixture<TestBase>, IDisposable
+public class TestBase : IDisposable
 {
-    private readonly List<string> _folderCollection = new();
+    private readonly List<string> _folderCollection = [];
     private readonly object _locker = new();
 
     protected string GetRandomFolder()
@@ -21,20 +21,6 @@ public class TestBase : IClassFixture<TestBase>, IDisposable
         }
 
         Directory.CreateDirectory(folder);
-        return folder;
-    }
-
-    protected string MoveToRandomFolder(string origin)
-    {
-        var folder = GetFolder();
-
-        lock (_locker)
-        {
-            _folderCollection.Remove(folder);
-            _folderCollection.Add(folder);
-        }
-
-        Directory.Move(origin, folder);
         return folder;
     }
 
@@ -57,7 +43,7 @@ public class TestBase : IClassFixture<TestBase>, IDisposable
         ArgumentNullException.ThrowIfNull(lines);
 
         var dir = Path.GetDirectoryName(fileName);
-        dir = CreateDirectory(dir, baseFolder);
+        CreateDirectory(dir, baseFolder);
         var file = Path.Combine(baseFolder, fileName);
         File.WriteAllLines(file, lines);
         return file;
@@ -70,7 +56,7 @@ public class TestBase : IClassFixture<TestBase>, IDisposable
         ArgumentNullException.ThrowIfNull(baseFolder);
 
         var dir = Path.GetDirectoryName(fileName);
-        dir = CreateDirectory(dir, baseFolder);
+        CreateDirectory(dir, baseFolder);
         var file = Path.Combine(baseFolder, fileName);
         File.WriteAllText(file, content);
         return file.Replace('\\', '/');
@@ -84,16 +70,6 @@ public class TestBase : IClassFixture<TestBase>, IDisposable
 
         File.Delete(Path.Combine(baseFolder, fileName));
         return CreateFile(fileName, lines, baseFolder);
-    }
-
-    protected static string UpdateFile(string fileName, string content, string baseFolder)
-    {
-        ArgumentNullException.ThrowIfNull(fileName);
-        ArgumentNullException.ThrowIfNull(content);
-        ArgumentNullException.ThrowIfNull(baseFolder);
-
-        File.Delete(Path.Combine(baseFolder, fileName));
-        return CreateFile(fileName, content, baseFolder);
     }
 
     protected static string CreateDirectory(string dir, string baseFolder)

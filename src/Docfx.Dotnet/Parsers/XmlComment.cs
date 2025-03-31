@@ -19,14 +19,27 @@ using Markdig.Syntax.Inlines;
 
 namespace Docfx.Dotnet;
 
-internal class XmlComment
+internal partial class XmlComment
 {
     private const string IdSelector = @"((?![0-9])[\w_])+[\w\(\)\.\{\}\[\]\|\*\^~#@!`,_<>:]*";
-    private static readonly Regex CommentIdRegex = new(@"^(?<type>N|T|M|P|F|E|Overload):(?<id>" + IdSelector + ")$", RegexOptions.Compiled);
-    private static readonly Regex RegionRegex = new(@"^\s*#region\s*(.*)$");
-    private static readonly Regex XmlRegionRegex = new(@"^\s*<!--\s*<([^/\s].*)>\s*-->$");
-    private static readonly Regex EndRegionRegex = new(@"^\s*#endregion\s*.*$");
-    private static readonly Regex XmlEndRegionRegex = new(@"^\s*<!--\s*</(.*)>\s*-->$");
+
+    [GeneratedRegex("^(?<type>N|T|M|P|F|E|Overload):(?<id>" + IdSelector + ")$")]
+    private static partial Regex CommentIdRegex();
+
+    [GeneratedRegex(@"^\s*#region\s*(.*)$")]
+    private static partial Regex RegionRegex();
+
+    [GeneratedRegex(@"^\s*<!--\s*<([^/\s].*)>\s*-->$")]
+    private static partial Regex XmlRegionRegex();
+
+    [GeneratedRegex(@"^\s*#endregion\s*.*$")]
+    private static partial Regex EndRegionRegex();
+
+    [GeneratedRegex(@"^\s*<!--\s*</(.*)>\s*-->$")]
+    private static partial Regex XmlEndRegionRegex();
+
+    [GeneratedRegex(@"^(\s*)&gt;", RegexOptions.Multiline)]
+    private static partial Regex BlockQuoteRegex();
 
     private readonly XmlCommentParserContext _context;
 
@@ -42,9 +55,9 @@ internal class XmlComment
 
     public List<string> Examples { get; private set; }
 
-    public Dictionary<string, string> Parameters { get; private set; }
+    public Dictionary<string, string> Parameters { get; }
 
-    public Dictionary<string, string> TypeParameters { get; private set; }
+    public Dictionary<string, string> TypeParameters { get; }
 
     private XmlComment(string xml, XmlCommentParserContext context)
     {
@@ -60,9 +73,8 @@ internal class XmlComment
             else
                 xml = $"<member><summary>{innerXml}</summary></member>";
         }
-
         // Workaround: https://github.com/dotnet/roslyn/pull/66668
-        if (!xml.StartsWith("<member", StringComparison.Ordinal) && !xml.EndsWith("</member>", StringComparison.Ordinal))
+        else if (!xml.StartsWith("<member", StringComparison.Ordinal) && !xml.EndsWith("</member>", StringComparison.Ordinal))
         {
             xml = $"<member>{xml}</member>";
         }
@@ -112,10 +124,6 @@ internal class XmlComment
         }
         try
         {
-            // Format xml with indentation.
-            // It's needed to fix issue (https://github.com/dotnet/docfx/issues/9736)
-            xml = XElement.Parse(xml).ToString(SaveOptions.None);
-
             return new XmlComment(xml, context ?? new());
         }
         catch (XmlException)
@@ -126,12 +134,12 @@ internal class XmlComment
 
     public string GetParameter(string name)
     {
-        return Parameters.TryGetValue(name, out var value) ? value : null;
+        return Parameters.GetValueOrDefault(name);
     }
 
     public string GetTypeParameter(string name)
     {
-        return TypeParameters.TryGetValue(name, out var value) ? value : null;
+        return TypeParameters.GetValueOrDefault(name);
     }
 
     private void ResolveCode(XDocument doc, XmlCommentParserContext context)
@@ -161,7 +169,8 @@ internal class XmlComment
 
             code.SetAttributeValue("class", $"lang-{lang}");
 
-            if (node.PreviousNode is null)
+            if (node.PreviousNode is null
+             || node.PreviousNode is XText xText && xText.Value == $"\n{indent}")
             {
                 // Xml writer formats <pre><code> with unintended identation
                 // when there is no preceeding text node.
@@ -261,14 +270,10 @@ internal class XmlComment
             string description = GetXmlValue(nav);
             if (!string.IsNullOrEmpty(name))
             {
-                if (result.ContainsKey(name))
+                if (!result.TryAdd(name, description))
                 {
                     string path = context.Source?.Remote != null ? Path.Combine(EnvironmentContext.BaseDirectory, context.Source.Remote.Path) : context.Source?.Path;
                     Logger.LogWarning($"Duplicate {contentType} '{name}' found in comments, the latter one is ignored.", file: StringExtension.ToDisplayPath(path), line: context.Source?.StartLine.ToString());
-                }
-                else
-                {
-                    result.Add(name, description);
                 }
             }
         }
@@ -286,10 +291,10 @@ internal class XmlComment
             case ".HTML":
             case ".CSHTML":
             case ".VBHTML":
-                return (XmlRegionRegex, XmlEndRegionRegex);
+                return (XmlRegionRegex(), XmlEndRegionRegex());
         }
 
-        return (RegionRegex, EndRegionRegex);
+        return (RegionRegex(), EndRegionRegex());
     }
 
     private static void ResolveLangword(XNode node)
@@ -327,7 +332,7 @@ internal class XmlComment
 
             // Strict check is needed as value could be an invalid href,
             // e.g. !:Dictionary&lt;TKey, string&gt; when user manually changed the intellisensed generic type
-            var match = CommentIdRegex.Match(cref);
+            var match = CommentIdRegex().Match(cref);
             if (match.Success)
             {
                 var id = match.Groups["id"].Value;
@@ -360,7 +365,7 @@ internal class XmlComment
             if (!success)
             {
                 var detailedInfo = new StringBuilder();
-                if (_context != null && _context.Source != null)
+                if (_context is { Source: not null })
                 {
                     if (!string.IsNullOrEmpty(_context.Source.Name))
                     {
@@ -378,9 +383,9 @@ internal class XmlComment
 
                 if (detailedInfo.Length == 0 && node is XDocument doc)
                 {
-                    var memberName = (string) doc.Element("member")?.Attribute("name");
+                    var memberName = (string)doc.Element("member")?.Attribute("name");
 
-                    if (! string.IsNullOrEmpty(memberName))
+                    if (!string.IsNullOrEmpty(memberName))
                     {
                         detailedInfo.Append(", member name is ");
                         detailedInfo.Append(memberName);
@@ -434,7 +439,7 @@ internal class XmlComment
             else if (!string.IsNullOrEmpty(commentId))
             {
                 // Check if exception type is valid and trim prefix
-                var match = CommentIdRegex.Match(commentId);
+                var match = CommentIdRegex().Match(commentId);
                 if (match.Success)
                 {
                     var id = match.Groups["id"].Value;
@@ -484,7 +489,7 @@ internal class XmlComment
             else if (!string.IsNullOrEmpty(commentId))
             {
                 // Check if cref type is valid and trim prefix
-                var match = CommentIdRegex.Match(commentId);
+                var match = CommentIdRegex().Match(commentId);
                 if (match.Success)
                 {
                     var id = match.Groups["id"].Value;
@@ -598,7 +603,7 @@ internal class XmlComment
         {
             // > is encoded to &gt; in XML. When interpreted as markdown, > is as blockquote
             // Decode standalone &gt; to > to enable the block quote markdown syntax
-            return Regex.Replace(xml, @"^(\s*)&gt;", "$1>", RegexOptions.Multiline);
+            return BlockQuoteRegex().Replace(xml, "$1>");
         }
 
         static void MarkdownXmlDecode(MarkdownObject node)
@@ -635,7 +640,7 @@ internal class XmlComment
                         MarkdownXmlDecode(child);
                     break;
 
-                case LeafBlock leafBlock when leafBlock.Inline is not null:
+                case LeafBlock { Inline: not null } leafBlock:
                     foreach (var child in leafBlock.Inline)
                         MarkdownXmlDecode(child);
                     break;

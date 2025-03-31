@@ -1,19 +1,14 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup />
   <ItemGroup>
     <None Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Api.*.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="PublicApiGenerator" />
     <PackageReference Include="Verify.Xunit" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\docfx\docfx.csproj" />
-    <ProjectReference Include="..\Docfx.Tests.Common\Docfx.Tests.Common.csproj" />
   </ItemGroup>
 </Project>

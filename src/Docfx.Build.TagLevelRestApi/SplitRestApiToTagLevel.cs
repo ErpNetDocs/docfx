@@ -77,12 +77,12 @@ public class SplitRestApiToTagLevel : BaseDocumentBuildStep
             tagModel.Metadata["_isSplittedToTag"] = true;
             var newModel = GenerateNewFileModel(model, tagModel);
             splittedModels.Add(newModel);
-            treeItems.Add(ConvertToTreeItem(tagModel, newModel.Key));
+            treeItems.Add(ConvertToTreeItem(tagModel));
         }
 
         // Only keep not tagged children in root model
         var groupedUids = splittedModels.SelectMany(m => m.Uids).Select(u => u.Name).ToList();
-        content.Tags = new List<RestApiTagViewModel>();
+        content.Tags = [];
         content.Children = content.Children.Where(child => !groupedUids.Contains(child.Uid)).ToList();
         content.Metadata["_isSplittedByTag"] = true;
         model.Content = content;
@@ -118,7 +118,7 @@ public class SplitRestApiToTagLevel : BaseDocumentBuildStep
                     Description = tag.Description,
                     Documentation = tag.Documentation,
                     Children = tagChildren,
-                    Tags = new List<RestApiTagViewModel>(),
+                    Tags = [],
                     Metadata = MergeTagMetadata(root, tag)
                 };
             }
@@ -131,7 +131,7 @@ public class SplitRestApiToTagLevel : BaseDocumentBuildStep
         var children = root.Children.Where(child => child.Tags != null && tagName == child.Tags.FirstOrDefault());
         foreach (var child in children)
         {
-            child.Tags = new List<string>();
+            child.Tags = [];
             yield return child;
         }
     }
@@ -173,7 +173,7 @@ public class SplitRestApiToTagLevel : BaseDocumentBuildStep
         }
     }
 
-    private static TreeItem ConvertToTreeItem(RestApiRootItemViewModel root, string fileKey)
+    private static TreeItem ConvertToTreeItem(RestApiRootItemViewModel root)
     {
         return new TreeItem
         {
@@ -191,10 +191,7 @@ public class SplitRestApiToTagLevel : BaseDocumentBuildStep
         foreach (var pair in root.Metadata)
         {
             // Tag metadata wins for the same key
-            if (!result.ContainsKey(pair.Key))
-            {
-                result[pair.Key] = pair.Value;
-            }
+            result.TryAdd(pair.Key, pair.Value);
         }
         return result;
     }

@@ -3,7 +3,6 @@
 
 using System.Collections.Immutable;
 using System.Composition;
-using System.Text.RegularExpressions;
 
 using Docfx.Build.Engine;
 using Docfx.Common;
@@ -19,9 +18,6 @@ namespace Docfx.Build.SchemaDriven.Tests;
 [Collection("docfx STA")]
 public class SchemaDrivenProcessorTest : TestBase
 {
-    private static readonly Regex InputMatcher = new(@"```(yml|yaml)\s*(### YamlMime:[\s\S]*?)\s*```", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex SchemaMatcher = new(@"```json\s*(\{\s*""\$schema""[\s\S]*?)\s*```", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
     private readonly string _outputFolder;
     private readonly string _inputFolder;
     private readonly string _templateFolder;
@@ -43,7 +39,7 @@ public class SchemaDrivenProcessorTest : TestBase
             TransformDocument = true,
         };
 
-        _templateManager = new TemplateManager(new List<string> { "template" }, null, _templateFolder);
+        _templateManager = new TemplateManager(["template"], null, _templateFolder);
     }
 
     [Fact]
@@ -87,7 +83,7 @@ items:
   - description: ""**outside**""
 ", _inputFolder);
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Article, new[] { inputFile }, _inputFolder);
+        files.Add(DocumentType.Article, [inputFile], _inputFolder);
         BuildDocument(files);
 
         Assert.Single(listener.Items);
@@ -114,7 +110,7 @@ items:
 <p>3.1.1<strong>Hello</strong></p>
 <p><strong>outside</strong></p>
 "
-                .Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries),
+                .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries),
             File.ReadAllLines(outputFilePath).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToArray());
     }
 
@@ -125,7 +121,7 @@ items:
         // arrange
         var schemaFile = CreateFile("template/schemas/mref.test.schema.json", File.ReadAllText("TestData/schemas/mref.test.schema.json"), _templateFolder);
         var templateXref = CreateFile(
-            "template/partials/overview.tmpl", @"{{name}}:{{{summary}}}|{{#boolProperty}}{{intProperty}}{{/boolProperty}}|{{#monikers}}<span>{{.}}</span>{{/monikers}}",
+            "template/partials/overview.tmpl", "{{name}}:{{{summary}}}|{{#boolProperty}}{{intProperty}}{{/boolProperty}}|{{#monikers}}<span>{{.}}</span>{{/monikers}}",
             _templateFolder);
         var templateFile = CreateFile("template/ManagedReference.html.tmpl", @"
 {{#items}}
@@ -137,7 +133,7 @@ items:
         var inputFileName = "inputs/CatLibrary.ICat.yml";
         var inputFile = CreateFile(inputFileName, File.ReadAllText("TestData/inputs/CatLibrary.ICat.yml"), _inputFolder);
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Article, new[] { inputFile }, _inputFolder);
+        files.Add(DocumentType.Article, [inputFile], _inputFolder);
 
         // act
         BuildDocument(files);
@@ -164,7 +160,7 @@ items:
         Assert.Equal(@"
 eat:<p>eat event of cat. Every cat must implement this event.
 This method is within <a class=""xref"" href=""CatLibrary.ICat.html"">ICat</a></p>
-|666|<span>net472</span><span>netstandard2_0</span>".Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None),
+|666|<span>net472</span><span>netstandard2_0</span>".Split(["\r\n", "\n"], StringSplitOptions.None),
             outputFileContent);
     }
 
@@ -235,7 +231,7 @@ title: Web Apps Documentation
 ", _inputFolder);
 
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Article, new[] { inputFile1, inputFile2, dependentMarkdown }, _inputFolder);
+        files.Add(DocumentType.Article, [inputFile1, inputFile2, dependentMarkdown], _inputFolder);
 
         BuildDocument(files);
 
@@ -261,7 +257,7 @@ title: Web Apps Documentation
         Assert.Equal("postbuild2", rawModel2["metadata"]["postMeta"].ToString());
 
         // change dependent markdown
-        UpdateFile("toc.md", new string[] { "# Updated" }, _inputFolder);
+        UpdateFile("toc.md", ["# Updated"], _inputFolder);
         BuildDocument(files);
 
         rawModel = JsonUtility.Deserialize<JObject>(rawModelFilePath);
@@ -283,7 +279,7 @@ title: Web Apps Documentation
     {
         // Json.NET schema has limitation of 1000 calls per hour
         using var listener = new TestListenerScope();
-        var schemaFile = CreateFile("template/schemas/mta.reference.test.schema.json", @"
+        CreateFile("template/schemas/mta.reference.test.schema.json", @"
 {
   ""$schema"": ""http://dotnet.github.io/docfx/schemas/v1.0/schema.json#"",
   ""version"": ""1.0.0"",
@@ -336,7 +332,7 @@ metadata: Web Apps Documentation
 ", _inputFolder);
 
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Article, new[] { inputFile }, _inputFolder);
+        files.Add(DocumentType.Article, [inputFile], _inputFolder);
         BuildDocument(files);
         var errors = listener.Items.Where(s => s.Code == "ViolateSchema").ToList();
         Assert.Single(errors);
@@ -379,7 +375,7 @@ searchScope:
 ", _inputFolder);
 
         FileCollection files = new(_defaultFiles);
-        files.Add(DocumentType.Article, new[] { inputFile1 }, _inputFolder);
+        files.Add(DocumentType.Article, [inputFile1], _inputFolder);
         Assert.Throws<InvalidJsonPointerException>(() => BuildDocument(files));
     }
 
@@ -397,7 +393,7 @@ searchScope:
             TemplateManager = _templateManager,
         };
 
-        using var builder = new DocumentBuilder(LoadAssemblies(), ImmutableArray<string>.Empty);
+        using var builder = new DocumentBuilder(LoadAssemblies(), []);
         builder.Build(parameters);
     }
 
@@ -410,11 +406,6 @@ searchScope:
     private string GetRawModelFilePath(string fileName)
     {
         return Path.Combine(_outputFolder, Path.ChangeExtension(fileName, RawModelFileExtension));
-    }
-
-    private string GetOutputFilePath(string fileName)
-    {
-        return Path.GetFullPath(Path.Combine(_outputFolder, Path.ChangeExtension(fileName, "html")));
     }
 
     [Export(nameof(SchemaDrivenDocumentProcessor) + ".NotExist", typeof(IDocumentBuildStep))]

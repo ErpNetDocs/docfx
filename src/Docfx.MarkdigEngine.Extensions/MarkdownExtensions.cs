@@ -60,7 +60,7 @@ public static class MarkdownExtensions
         this MarkdownPipelineBuilder pipeline,
         MarkdigExtensionSetting[] optionalExtensions)
     {
-        if (!optionalExtensions.Any())
+        if (optionalExtensions.Length == 0)
         {
             return pipeline;
         }
@@ -80,7 +80,7 @@ public static class MarkdownExtensions
         optionalExtensions = results.ToArray();
 
         // Enable remaining markdig extensions with default options.
-        pipeline.Configure(string.Join("+", optionalExtensions.Select(x => x.Name)));
+        pipeline.Configure(string.Join('+', optionalExtensions.Select(x => x.Name)));
 
         return pipeline;
     }

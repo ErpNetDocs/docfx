@@ -12,10 +12,12 @@ using Microsoft.CodeAnalysis;
 
 namespace Docfx.Dotnet;
 
-internal static class VisitorHelper
+internal static partial class VisitorHelper
 {
     public static string GlobalNamespaceId { get; set; }
-    private static readonly Regex GenericMethodPostFix = new(@"``\d+$", RegexOptions.Compiled);
+
+    [GeneratedRegex(@"``\d+$")]
+    private static partial Regex GenericMethodPostFix();
 
     public static string PathFriendlyId(string id)
     {
@@ -29,7 +31,7 @@ internal static class VisitorHelper
             return null;
         }
 
-        if (symbol is INamespaceSymbol namespaceSymbol && namespaceSymbol.IsGlobalNamespace)
+        if (symbol is INamespaceSymbol { IsGlobalNamespace: true })
         {
             return GlobalNamespaceId;
         }
@@ -68,8 +70,8 @@ internal static class VisitorHelper
 
         if (InGlobalNamespace(symbol) && !string.IsNullOrEmpty(GlobalNamespaceId))
         {
-            bool isNamespace = (symbol is INamespaceSymbol);
-            bool isTypeParameter = (symbol is ITypeParameterSymbol);
+            bool isNamespace = symbol is INamespaceSymbol;
+            bool isTypeParameter = symbol is ITypeParameterSymbol;
             if (!isNamespace && !isTypeParameter)
             {
                 str = str.Insert(2, GlobalNamespaceId + ".");
@@ -109,11 +111,11 @@ internal static class VisitorHelper
                 uidBody = uidBody.Remove(index);
             }
         }
-        uidBody = GenericMethodPostFix.Replace(uidBody, string.Empty);
+        uidBody = GenericMethodPostFix().Replace(uidBody, string.Empty);
         return uidBody;
     }
 
-    public static ApiParameter GetParameterDescription(ISymbol symbol, MetadataItem item, string id, bool isReturn, XmlCommentParserContext context)
+    public static ApiParameter GetParameterDescription(ISymbol symbol, MetadataItem item, string id, bool isReturn)
     {
         string comment = isReturn ? item.CommentModel?.Returns : item.CommentModel?.GetParameter(symbol.Name);
         return new ApiParameter
@@ -124,7 +126,7 @@ internal static class VisitorHelper
         };
     }
 
-    public static ApiParameter GetTypeParameterDescription(ITypeParameterSymbol symbol, MetadataItem item, XmlCommentParserContext context)
+    public static ApiParameter GetTypeParameterDescription(ITypeParameterSymbol symbol, MetadataItem item)
     {
         string comment = item.CommentModel?.GetTypeParameter(symbol.Name);
         return new ApiParameter

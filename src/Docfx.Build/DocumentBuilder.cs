@@ -9,11 +9,10 @@ using Docfx.Build.SchemaDriven;
 using Docfx.Common;
 using Docfx.MarkdigEngine;
 using Docfx.Plugins;
-using Newtonsoft.Json;
 
 namespace Docfx.Build.Engine;
 
-public class DocumentBuilder : IDisposable
+public sealed class DocumentBuilder : IDisposable
 {
     [ImportMany]
     internal IEnumerable<IDocumentProcessor> Processors { get; set; }
@@ -27,7 +26,7 @@ public class DocumentBuilder : IDisposable
     public DocumentBuilder(IEnumerable<Assembly> assemblies, ImmutableArray<string> postProcessorNames)
     {
         Logger.LogVerbose("Loading plug-ins and post-processors...");
-        var assemblyList = assemblies?.ToList() ?? new List<Assembly>();
+        var assemblyList = assemblies?.ToList() ?? [];
         assemblyList.Add(typeof(DocumentBuilder).Assembly);
         _container = CompositionContainer.GetContainer(assemblyList);
         _container.SatisfyImports(this);
@@ -39,9 +38,11 @@ public class DocumentBuilder : IDisposable
         Build(new DocumentBuildParameters[] { parameter }, parameter.OutputBaseDir);
     }
 
-    public void Build(IList<DocumentBuildParameters> parameters, string outputDirectory)
+    public void Build(IList<DocumentBuildParameters> parameters, string outputDirectory, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(parameters);
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (parameters.Count == 0)
         {
@@ -92,11 +93,11 @@ public class DocumentBuilder : IDisposable
 
             if (parameter.Files.Count == 0)
             {
-                manifests.Add(new Manifest() { SourceBasePath = StringExtension.ToNormalizedPath(EnvironmentContext.BaseDirectory) });
+                manifests.Add(new Manifest { SourceBasePath = StringExtension.ToNormalizedPath(EnvironmentContext.BaseDirectory) });
             }
             else
             {
-                if (!parameter.Files.EnumerateFiles().Any(s => s.Type == DocumentType.Article))
+                if (!parameter.Files.EnumerateFiles().Any(static s => s.Type == DocumentType.Article))
                 {
                     if (!string.IsNullOrEmpty(parameter.GroupInfo?.Name))
                     {
@@ -119,7 +120,7 @@ public class DocumentBuilder : IDisposable
                     MetadataValidators = MetadataValidators.ToList(),
                     Processors = Processors,
                 };
-                manifests.Add(builder.Build(parameter, markdownService));
+                manifests.Add(builder.Build(parameter, markdownService, cancellationToken));
             }
         }
         if (noContentFound)
@@ -131,7 +132,7 @@ public class DocumentBuilder : IDisposable
         else if (emptyContentGroups.Count > 0)
         {
             Logger.LogSuggestion(
-                $"No content file found in group: {string.Join(",", emptyContentGroups)}. Please make sure the content section of docfx.json is correctly configured.",
+                $"No content file found in group: {string.Join(',', emptyContentGroups)}. Please make sure the content section of docfx.json is correctly configured.",
                 code: SuggestionCodes.Build.EmptyInputContents);
         }
 
@@ -145,7 +146,7 @@ public class DocumentBuilder : IDisposable
             .WriteToManifest(generatedManifest, parameters[0].OutputBaseDir)
             .Create();
 
-        _postProcessorsManager.Process(generatedManifest, outputDirectory);
+        _postProcessorsManager.Process(generatedManifest, outputDirectory, cancellationToken);
 
         generatedManifest.Dereference(parameters[0].OutputBaseDir, parameters[0].MaxParallelism);
 
@@ -157,7 +158,7 @@ public class DocumentBuilder : IDisposable
             .Create();
 
         generatedManifest.Files.Sort((a, b) => (a.SourceRelativePath ?? "").CompareTo(b.SourceRelativePath ?? ""));
-        JsonUtility.Serialize("manifest.json", generatedManifest, Formatting.Indented);
+        JsonUtility.Serialize("manifest.json", generatedManifest, indented: true);
 
         EnvironmentContext.FileAbstractLayerImpl = null;
 

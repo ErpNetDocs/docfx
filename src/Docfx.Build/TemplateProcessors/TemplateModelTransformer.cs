@@ -5,7 +5,6 @@ using System.Web;
 using Docfx.Common;
 using Docfx.Plugins;
 using HtmlAgilityPack;
-using Newtonsoft.Json;
 
 namespace Docfx.Build.Engine;
 
@@ -38,7 +37,7 @@ public class TemplateModelTransformer
     /// <returns></returns>
     internal ManifestItem Transform(InternalManifestItem item)
     {
-        if (item == null || item.Content == null)
+        if (item?.Content == null)
         {
             throw new ArgumentNullException(nameof(item), "Content for item.Model should not be null!");
         }
@@ -59,7 +58,6 @@ public class TemplateModelTransformer
             Version = _context.VersionName,
             Group = _context.GroupInfo?.Name,
         };
-        var outputDirectory = _settings.OutputFolder ?? Directory.GetCurrentDirectory();
 
         // 1. process resource
         if (item.ResourceFile != null)
@@ -92,7 +90,7 @@ public class TemplateModelTransformer
 
             var extension = template.Extension;
             string outputFile = item.FileWithoutExtension + extension;
-            object viewModel = null;
+            object viewModel;
             try
             {
                 viewModel = template.TransformModel(model);
@@ -260,13 +258,13 @@ public class TemplateModelTransformer
         var outputFolder = settings.OutputFolder ?? string.Empty;
         var modelPath = Path.GetFullPath(Path.Combine(outputFolder, settings.PathRewriter(modelFileRelativePath)));
 
-        JsonUtility.Serialize(modelPath, model, Formatting.Indented);
+        JsonUtility.Serialize(modelPath, model, indented: true);
         return StringExtension.ToDisplayPath(modelPath);
     }
 
     private void TransformDocument(string result, string extension, IDocumentBuildContext context, string destFilePath, ManifestItem manifestItem, out List<XRefDetails> unresolvedXRefs)
     {
-        unresolvedXRefs = new List<XRefDetails>();
+        unresolvedXRefs = [];
         using (var stream = EnvironmentContext.FileAbstractLayer.Create(destFilePath))
         {
             using var sw = new StreamWriter(stream);
@@ -294,7 +292,7 @@ public class TemplateModelTransformer
         HtmlDocument document = new();
         document.LoadHtml(html);
 
-        unresolvedXRefs = new List<XRefDetails>();
+        unresolvedXRefs = [];
         TransformXrefInHtml(context, sourceFilePath, destFilePath, document.DocumentNode, unresolvedXRefs);
         TransformLinkInHtml(context, sourceFilePath, destFilePath, document.DocumentNode);
 

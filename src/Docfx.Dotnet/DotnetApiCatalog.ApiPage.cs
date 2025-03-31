@@ -10,7 +10,6 @@ using Docfx.DataContracts.ManagedReference;
 using Docfx.Plugins;
 using HtmlAgilityPack;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Shared.Extensions;
 using OneOf;
 
 #nullable enable
@@ -19,6 +18,10 @@ namespace Docfx.Dotnet;
 
 partial class DotnetApiCatalog
 {
+    // Regex to match any character other than a word character(alphabet/numeric/underscore)
+    [GeneratedRegex(@"\W")]
+    private static partial Regex NonWordCharRegex();
+
     private static void CreatePages(Action<string, string, ApiPage> output, List<(IAssemblySymbol symbol, Compilation compilation)> assemblies, ExtractMetadataConfig config, DotnetApiOptions options)
     {
         Directory.CreateDirectory(config.OutputFolder);
@@ -86,7 +89,7 @@ partial class DotnetApiCatalog
                         _ when SymbolHelper.IsOperator(method) => "Operator",
                         _ when SymbolHelper.IsMember(method) => "Method",
                         _ => throw new NotSupportedException($"Unknown method type {method.MethodKind}"),
-                    }); ;
+                    });
                     foreach (var (s, c) in symbols)
                         Method((IMethodSymbol)s, c, 2);
                     break;
@@ -123,10 +126,10 @@ partial class DotnetApiCatalog
             void Api(int level, string title, ISymbol symbol, Compilation compilation)
             {
                 var uid = VisitorHelper.GetId(symbol);
-                var id = Regex.Replace(uid, @"\W", "_");
+                var id = NonWordCharRegex().Replace(uid, "_");
                 var commentId = VisitorHelper.GetCommentId(symbol);
                 var source = config.DisableGitFeatures ? null : VisitorHelper.GetSourceDetail(symbol, compilation);
-                var git = source is null || source.Remote is null ? null
+                var git = source?.Remote is null ? null
                     : new GitSource(source.Remote.Repo, source.Remote.Branch, source.Remote.Path, source.StartLine + 1);
                 var src = git is null ? null : options.SourceUrl?.Invoke(git) ?? GitUtility.GetSourceUrl(git);
                 var deprecated = Deprecated(symbol);
@@ -602,10 +605,12 @@ partial class DotnetApiCatalog
                     return;
 
                 if (config.EnumSortOrder is EnumSortOrder.Alphabetic)
-                    items = items.OrderBy(m => m.Name).ToList();
+                    items = items.OrderBy(static m => m.Name).ToList();
 
                 body.Add((Heading)new H2 { h2 = "Fields" });
                 body.Add(new Parameters { parameters = items.Select(ToParameter).ToArray() });
+
+                return;
 
                 Parameter ToParameter(IFieldSymbol item)
                 {
@@ -613,7 +618,8 @@ partial class DotnetApiCatalog
 
                     return new()
                     {
-                        name = item.Name, @default = $"{item.ConstantValue}",
+                        name = item.Name,
+                        @default = $"{item.ConstantValue}",
                         deprecated = Deprecated(item),
                         preview = Preview(item),
                         description = docs,
@@ -704,14 +710,14 @@ partial class DotnetApiCatalog
         Inline ShortLink(ISymbol symbol, Compilation compilation)
         {
             var title = SymbolFormatter.GetNameWithType(symbol, SyntaxLanguage.CSharp);
-            var url = SymbolUrlResolver.GetSymbolUrl(symbol, compilation, config.MemberLayout, symbolUrlKind, allAssemblies);
+            var url = SymbolUrlResolver.GetSymbolUrl(symbol, compilation, config.MemberLayout, symbolUrlKind, allAssemblies, filter);
             return Link(title, url);
         }
 
         Inline FullLink(ISymbol symbol, Compilation compilation)
         {
             var parts = SymbolFormatter.GetNameWithTypeParts(symbol, SyntaxLanguage.CSharp);
-            var linkItems = SymbolFormatter.ToLinkItems(parts, compilation, config.MemberLayout, allAssemblies, overload: false, symbolUrlKind);
+            var linkItems = SymbolFormatter.ToLinkItems(parts, compilation, config.MemberLayout, allAssemblies, overload: false, filter, symbolUrlKind);
 
             return linkItems.Select(i => Link(i.DisplayName, i.Href)).ToArray();
         }
@@ -719,7 +725,7 @@ partial class DotnetApiCatalog
         Inline NameOnlyLink(ISymbol symbol, Compilation compilation)
         {
             var title = SymbolFormatter.GetName(symbol, SyntaxLanguage.CSharp);
-            var url = SymbolUrlResolver.GetSymbolUrl(symbol, compilation, config.MemberLayout, symbolUrlKind, allAssemblies);
+            var url = SymbolUrlResolver.GetSymbolUrl(symbol, compilation, config.MemberLayout, symbolUrlKind, allAssemblies, filter);
             return Link(title, url);
         }
 
@@ -728,7 +734,7 @@ partial class DotnetApiCatalog
             return string.IsNullOrEmpty(url) ? text : new LinkSpan { text = text, url = url };
         }
 
-        XmlComment? Comment(ISymbol symbol, Compilation compilation)
+        XmlComment Comment(ISymbol symbol, Compilation compilation)
         {
             // Cache XML comment to avoid duplicated parsing and warnings
             return commentCache.GetOrAdd(symbol, symbol =>

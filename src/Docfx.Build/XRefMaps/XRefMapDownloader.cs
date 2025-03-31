@@ -1,8 +1,6 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
 using Docfx.Common;
@@ -76,13 +74,13 @@ public sealed class XRefMapDownloader
                 return ReadLocalFileAsync(localFilePath, token);
             }
         }
-        throw new FileNotFoundException($"Cannot find xref map file {uri.OriginalString} in path: {string.Join(",", _localFileFolders)}", uri.OriginalString);
+        throw new FileNotFoundException($"Cannot find xref map file {uri.OriginalString} in path: {string.Join(',', _localFileFolders)}", uri.OriginalString);
     }
 
     /// <remarks>
     /// Support scheme: http, https, file.
     /// </remarks>
-    private async ValueTask<IXRefContainer> DownloadBySchemeAsync(Uri uri, CancellationToken token = default)
+    private static async ValueTask<IXRefContainer> DownloadBySchemeAsync(Uri uri, CancellationToken token = default)
     {
         IXRefContainer result;
         if (uri.IsFile)
@@ -128,27 +126,26 @@ public sealed class XRefMapDownloader
                     switch (Path.GetExtension(Path.GetFileNameWithoutExtension(filePath)).ToLowerInvariant())
                     {
                         case ".json":
-                            return await SystemTextJsonUtility.DeserializeAsync<XRefMap>(stream, token);
+                            return await JsonUtility.DeserializeAsync<XRefMap>(stream, token);
                         case ".yml":
                         default:
                             {
                                 using var reader = new StreamReader(stream);
                                 return YamlUtility.Deserialize<XRefMap>(reader);
-                            };
+                            }
                     }
                 }
 
             case ".json":
                 {
                     using var stream = File.OpenRead(filePath);
-                    return await SystemTextJsonUtility.DeserializeAsync<XRefMap>(stream, token);
+                    return await JsonUtility.DeserializeAsync<XRefMap>(stream, token);
                 }
 
             case ".yml":
             default:
                 {
-                    using var sr = File.OpenText(filePath);
-                    return YamlUtility.Deserialize<XRefMap>(sr);
+                    return YamlUtility.Deserialize<XRefMap>(filePath);
                 }
         }
     }
@@ -172,7 +169,7 @@ public sealed class XRefMapDownloader
         {
             case ".json":
                 {
-                    var xrefMap = await SystemTextJsonUtility.DeserializeAsync<XRefMap>(stream, token);
+                    var xrefMap = await JsonUtility.DeserializeAsync<XRefMap>(stream, token);
                     xrefMap.BaseUrl = ResolveBaseUrl(xrefMap, uri);
                     return xrefMap;
                 }

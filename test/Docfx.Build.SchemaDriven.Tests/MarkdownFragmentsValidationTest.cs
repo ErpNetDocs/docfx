@@ -1,7 +1,6 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Immutable;
 using Docfx.Build.Engine;
 using Docfx.Common;
 using Docfx.Plugins;
@@ -22,7 +21,7 @@ public class MarkdownFragmentsValidationTest : TestBase
     private TemplateManager _templateManager;
     private FileCollection _files;
 
-    private TestLoggerListener _listener = new();
+    private readonly TestLoggerListener _listener = new();
     private string _rawModelFilePath;
 
     private const string RawModelFileExtension = ".raw.json";
@@ -36,7 +35,7 @@ public class MarkdownFragmentsValidationTest : TestBase
         _defaultFiles = new FileCollection(Directory.GetCurrentDirectory());
         _applyTemplateSettings = new ApplyTemplateSettings(_inputFolder, _outputFolder) { RawModelExportSettings = { Export = true }, TransformDocument = true, };
 
-        _templateManager = new TemplateManager(new List<string> { "template" }, null, _templateFolder);
+        _templateManager = new TemplateManager(["template"], null, _templateFolder);
 
         _rawModelFilePath = GetRawModelFilePath("FragmentsValidation.yml");
 
@@ -44,7 +43,7 @@ public class MarkdownFragmentsValidationTest : TestBase
         var yamlFile = CreateFile("FragmentsValidation.yml", File.ReadAllText("TestData/inputs/FragmentsValidation.yml"), _inputFolder);
         var mdFile = CreateFile("FragmentsValidation.yml.md", File.ReadAllText("TestData/inputs/FragmentsValidation.yml.md"), _inputFolder);
         _files = new FileCollection(_defaultFiles);
-        _files.Add(DocumentType.Article, new[] { yamlFile }, _inputFolder);
+        _files.Add(DocumentType.Article, [yamlFile], _inputFolder);
 
         // Act
         Logger.RegisterListener(_listener);
@@ -83,7 +82,7 @@ There is an invalid H2: `operations[id=""management.azure.com.advisor.fragmentsV
             TemplateManager = _templateManager,
         };
 
-        using var builder = new DocumentBuilder(LoadAssemblies(), ImmutableArray<string>.Empty);
+        using var builder = new DocumentBuilder(LoadAssemblies(), []);
         builder.Build(parameters);
     }
 
