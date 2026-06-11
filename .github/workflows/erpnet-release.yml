@@ -1,0 +1,75 @@
+# Builds the custom ERP.net docfx and publishes a linux-x64 binary as a release
+# asset that the docs repos' workflows download. Run manually after updating the
+# custom branch.
+#
+# NOTE: workflow_dispatch only shows a "Run workflow" button when this file is on
+# the repository's DEFAULT branch. It builds from `ref` (erpnet-dev-25) regardless.
+name: Publish ERP.net docfx
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch/tag holding the custom docfx
+        default: erpnet-dev-25
+        required: true
+      release_tag:
+        description: Release tag to publish the asset under
+        default: docfx-erpnet
+        required: true
+
+permissions:
+  contents: write # create release + upload asset
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout custom docfx
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.x
+            8.x
+
+      - name: Build templates
+        working-directory: templates
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish docfx (linux-x64, self-contained)
+        run: dotnet publish src/docfx -f net8.0 -c Release -r linux-x64 --self-contained true -o drop/publish/linux-x64
+
+      - name: Verify it's the CUSTOM build (guard against stock docfx)
+        run: |
+          if ! grep -q ListOperatorParser drop/publish/linux-x64/Docfx.Build.dll; then
+            echo "::error::Built docfx is missing custom types (ListOperatorParser) — wrong branch '${{ inputs.ref }}'?"
+            exit 1
+          fi
+          echo "Custom docfx confirmed."
+
+      - name: Zip asset
+        working-directory: drop/publish/linux-x64
+        run: zip -r ../../docfx-linux-x64.zip .
+
+      - name: Publish/refresh release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" drop/docfx-linux-x64.zip --clobber
+          else
+            gh release create "$TAG" drop/docfx-linux-x64.zip \
+              --title "docfx (ERP.net custom build)" \
+              --notes "Custom docfx for the docs pipelines. Built from '${{ inputs.ref }}'."
+          fi
